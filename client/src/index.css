@@ -156,9 +156,11 @@
 }
 
 /* Custom subtle scrollbars */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+@supports (scrollbar-width: thin) and (scrollbar-color: auto) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
 }
 
 *::-webkit-scrollbar {
