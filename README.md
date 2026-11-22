@@ -43,7 +43,7 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 
 | Lapisan | Teknologi |
 | :--- | :--- |
-| **Frontend** | React 19, Vite 8, Tailwind CSS v4 (`@tailwindcss/vite`, `@tailwindcss/typography`), Lucide React, `react-markdown`, `remark-gfm`, `clsx`, `tailwind-merge`, Oxlint |
+| **Frontend** | React 19, Vite 8, Tailwind CSS v4 (`@tailwindcss/vite`), Lucide React, `react-markdown`, `remark-gfm`, `clsx`, `tailwind-merge`, Oxlint |
 | **Backend** | Node.js 22+, Express 5, CORS |
 | **Development Tooling** | Concurrently (menjalankan frontend dan backend bersamaan dari root) |
 

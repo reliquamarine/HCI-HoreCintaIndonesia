@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -254,6 +253,34 @@
 
 .chat-prose p:last-child {
   margin-bottom: 0;
+}
+
+.chat-prose h1,
+.chat-prose h2,
+.chat-prose h3 {
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 1.15em;
+  margin-bottom: 0.45em;
+}
+
+.chat-prose h1 {
+  font-size: 1.25rem;
+}
+
+.chat-prose h2 {
+  font-size: 1.1rem;
+}
+
+.chat-prose h3 {
+  font-size: 1rem;
+}
+
+.chat-prose hr {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  margin: 1rem 0;
 }
 
 .chat-prose strong {
