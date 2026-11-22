@@ -1,6 +1,12 @@
-import { useCallback } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useChat } from '../../hooks/useChat.js'
+import {
+  sendChatMessage,
+  upgradeVerificationMode,
+} from '../../services/chatService.js'
+import { ClaimsOverview } from '../claims/ClaimsOverview.jsx'
 import { ChatComposer } from './ChatComposer.jsx'
+import { CitedMarkdownRenderer } from './CitedMarkdownRenderer.jsx'
 import { MessageList } from './MessageList.jsx'
 import { WelcomeScreen } from './WelcomeScreen.jsx'
 
@@ -24,32 +30,66 @@ export function ChatWorkspace() {
     showToast,
   } = useChat()
 
-  const runPreviewReply = useCallback(
-    async (sessionId, assistantId, query, mode) => {
+  const [selectedClaims, setSelectedClaims] = useState({})
+  const [flashingClaim, setFlashingClaim] = useState(null)
+  const [upgradingMessageId, setUpgradingMessageId] = useState(null)
+  const flashTimerRef = useRef(null)
+
+  const handleJumpToClaim = useCallback((messageId, claimIndex, openPanel) => {
+    openPanel?.()
+    setSelectedClaims((prev) => ({ ...prev, [messageId]: claimIndex }))
+    setFlashingClaim({ messageId, claimIndex })
+
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    flashTimerRef.current = setTimeout(() => {
+      setFlashingClaim(null)
+    }, 900)
+
+    setTimeout(() => {
+      const panelEl = document.getElementById(`claims-panel-${messageId}`)
+      panelEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }, 60)
+  }, [])
+
+  const runAssistantResponse = useCallback(
+    async (sessionId, assistantId, query, history, mode) => {
       const controller = new AbortController()
       abortControllerRef.current = controller
       setIsGenerating(true)
 
       try {
-        await new Promise((resolve, reject) => {
-          const timer = setTimeout(resolve, 450)
-          controller.signal.addEventListener('abort', () => {
-            clearTimeout(timer)
-            reject(new DOMException('Dibatalkan', 'AbortError'))
-          })
+        const result = await sendChatMessage({
+          query,
+          sessionId,
+          history,
+          mode,
+          signal: controller.signal,
+          onPhaseChange: (phase) => {
+            updateMessage(sessionId, assistantId, { status: phase })
+          },
+          onToken: (partialText) => {
+            updateMessage(sessionId, assistantId, {
+              content: partialText,
+              status: 'streaming',
+            })
+          },
         })
-
-        const reply = `Pertanyaanmu mengenai **"${query}"** sudah diterima pada mode **${mode === 'comprehensive' ? 'Mendalam' : 'Dasar'}**. Panel Ringkasan Klaim beserta kartu sumber verifikasi akan dihubungkan penuh pada Fase 4.`
 
         updateMessage(sessionId, assistantId, {
-          content: reply,
+          content: result.content,
+          claims: result.claims,
+          followUps: result.followUps,
+          mode: result.mode,
           status: 'done',
-          mode,
-          followUps: [
-            'Tampilkan contoh bukti dengan skor kredibilitas',
-            'Apa perbedaan mode Dasar dan Mendalam?',
-          ],
+          errorMessage: null,
         })
+
+        if (result.claims?.length > 0) {
+          setSelectedClaims((prev) => ({
+            ...prev,
+            [assistantId]: result.claims[0].index,
+          }))
+        }
       } catch (err) {
         if (err?.name === 'AbortError') {
           updateMessage(sessionId, assistantId, (msg) => ({
@@ -59,7 +99,9 @@ export function ChatWorkspace() {
         } else {
           updateMessage(sessionId, assistantId, {
             status: 'error',
-            errorMessage: 'Tidak dapat memproses pertanyaan saat ini.',
+            errorMessage:
+              err?.message ||
+              'Terjadi kendala saat menelusuri sumber referensi. Silakan coba lagi.',
           })
         }
       } finally {
@@ -77,6 +119,11 @@ export function ChatWorkspace() {
       if (!activeSession || isGenerating) return
       const sessionId = activeSession.id
       const now = new Date().toISOString()
+
+      const history = activeSession.messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }))
 
       const userMessage = {
         id: createMessageId('usr'),
@@ -99,13 +146,19 @@ export function ChatWorkspace() {
 
       appendMessage(sessionId, userMessage)
       appendMessage(sessionId, assistantMessage)
-      runPreviewReply(sessionId, assistantMessage.id, text, verificationMode)
+      runAssistantResponse(
+        sessionId,
+        assistantMessage.id,
+        text,
+        history,
+        verificationMode,
+      )
     },
     [
       activeSession,
       appendMessage,
       isGenerating,
-      runPreviewReply,
+      runAssistantResponse,
       verificationMode,
     ],
   )
@@ -114,6 +167,13 @@ export function ChatWorkspace() {
     (messageId, newText) => {
       if (!activeSession || isGenerating) return
       const sessionId = activeSession.id
+      const targetIdx = activeSession.messages.findIndex(
+        (m) => m.id === messageId,
+      )
+      const historyBefore = activeSession.messages
+        .slice(0, Math.max(0, targetIdx))
+        .map((m) => ({ role: m.role, content: m.content }))
+
       truncateFromMessage(sessionId, messageId, true)
       const now = new Date().toISOString()
 
@@ -123,6 +183,7 @@ export function ChatWorkspace() {
         content: newText,
         timestamp: now,
       }
+
       const assistantMessage = {
         id: createMessageId('ast'),
         role: 'assistant',
@@ -134,15 +195,22 @@ export function ChatWorkspace() {
         claims: [],
         followUps: [],
       }
+
       appendMessage(sessionId, editedUser)
       appendMessage(sessionId, assistantMessage)
-      runPreviewReply(sessionId, assistantMessage.id, newText, verificationMode)
+      runAssistantResponse(
+        sessionId,
+        assistantMessage.id,
+        newText,
+        historyBefore,
+        verificationMode,
+      )
     },
     [
       activeSession,
       appendMessage,
       isGenerating,
-      runPreviewReply,
+      runAssistantResponse,
       truncateFromMessage,
       verificationMode,
     ],
@@ -156,14 +224,19 @@ export function ChatWorkspace() {
       )
       if (idx <= 0) return
 
-      let precedingUser = null
+      let userIdx = -1
       for (let i = idx - 1; i >= 0; i -= 1) {
         if (activeSession.messages[i].role === 'user') {
-          precedingUser = activeSession.messages[i]
+          userIdx = i
           break
         }
       }
-      if (!precedingUser) return
+      if (userIdx === -1) return
+
+      const precedingUser = activeSession.messages[userIdx]
+      const historyBefore = activeSession.messages
+        .slice(0, userIdx)
+        .map((m) => ({ role: m.role, content: m.content }))
 
       updateMessage(activeSession.id, assistantMessageId, {
         content: '',
@@ -176,20 +249,36 @@ export function ChatWorkspace() {
         timestamp: new Date().toISOString(),
       })
 
-      runPreviewReply(
+      runAssistantResponse(
         activeSession.id,
         assistantMessageId,
         precedingUser.content,
+        historyBefore,
         verificationMode,
       )
     },
     [
       activeSession,
       isGenerating,
-      runPreviewReply,
+      runAssistantResponse,
       updateMessage,
       verificationMode,
     ],
+  )
+
+  const handleUpgradeMode = useCallback(
+    async (messageId) => {
+      if (!activeSession || upgradingMessageId) return
+      setUpgradingMessageId(messageId)
+      try {
+        const nextMode = await upgradeVerificationMode()
+        updateMessage(activeSession.id, messageId, { mode: nextMode })
+        showToast('Berhasil beralih ke Mode Mendalam', 'success')
+      } finally {
+        setUpgradingMessageId(null)
+      }
+    },
+    [activeSession, showToast, updateMessage, upgradingMessageId],
   )
 
   const messages = activeSession?.messages || []
@@ -211,6 +300,39 @@ export function ChatWorkspace() {
             setMessageFeedback(activeSession.id, messageId, fb)
           }}
           onSelectFollowUp={handleSend}
+          renderMarkdown={(message, { onOpenClaims }) => (
+            <CitedMarkdownRenderer
+              content={message.content}
+              claims={message.claims}
+              onSelectClaim={(claimIndex) =>
+                handleJumpToClaim(message.id, claimIndex, onOpenClaims)
+              }
+            />
+          )}
+          renderClaimsPanel={(message, { onClosePanel }) => (
+            <ClaimsOverview
+              panelId={`claims-panel-${message.id}`}
+              claims={message.claims}
+              mode={message.mode}
+              selectedClaimIndex={
+                selectedClaims[message.id] ?? message.claims?.[0]?.index ?? 1
+              }
+              flashingClaimIndex={
+                flashingClaim?.messageId === message.id
+                  ? flashingClaim.claimIndex
+                  : null
+              }
+              onSelectClaim={(claimIndex) =>
+                setSelectedClaims((prev) => ({
+                  ...prev,
+                  [message.id]: claimIndex,
+                }))
+              }
+              isUpgrading={upgradingMessageId === message.id}
+              onUpgradeMode={() => handleUpgradeMode(message.id)}
+              onClosePanel={onClosePanel}
+            />
+          )}
         />
       )}
 
