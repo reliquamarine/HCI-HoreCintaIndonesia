@@ -41,6 +41,13 @@ export function AppShell({ children }) {
 
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-canvas text-ink">
+      <a
+        href="#main-chat-area"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-[var(--shadow-float)]"
+      >
+        Lewati ke area percakapan
+      </a>
+
       {/* Desktop collapsible sidebar */}
       <div
         className={cn(
@@ -83,7 +90,10 @@ export function AppShell({ children }) {
           onToggleDesktopSidebar={() => setIsDesktopSidebarOpen((prev) => !prev)}
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
         />
-        <main className="relative flex min-h-0 flex-1 flex-col">
+        <main
+          id="main-chat-area"
+          className="relative flex min-h-0 flex-1 flex-col"
+        >
           {children}
         </main>
       </div>

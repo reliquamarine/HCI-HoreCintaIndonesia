@@ -1,61 +1,10 @@
-import { AlertCircle, Check, Copy, RotateCcw } from 'lucide-react'
+import { AlertCircle, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { formatMessageTime } from '../../utils/dateGroups.js'
 import { MODE_META } from '../../utils/verificationLabels.js'
 import { BrandLogo } from '../ui/BrandLogo.jsx'
 import { MessageActionBar } from './MessageActionBar.jsx'
 import { TypingIndicator } from './TypingIndicator.jsx'
-
-function CodeBlock({ children, className }) {
-  const [copied, setCopied] = useState(false)
-  const rawCode = String(children).replace(/\n$/, '')
-  const language = className?.replace('language-', '') || 'kode'
-
-  async function copyCode() {
-    try {
-      await navigator.clipboard.writeText(rawCode)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1600)
-    } catch {
-      // Ignore clipboard failure
-    }
-  }
-
-  return (
-    <div className="my-3 overflow-hidden rounded-xl border border-line bg-surface-muted">
-      <div className="flex items-center justify-between border-b border-line px-3 py-1.5">
-        <span className="font-mono text-[11px] font-medium uppercase tracking-wide text-ink-muted">
-          {language}
-        </span>
-        <button
-          type="button"
-          onClick={copyCode}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
-        >
-          {copied ? (
-            <>
-              <Check
-                className="h-3 w-3"
-                style={{ color: 'var(--status-supported-text)' }}
-              />
-              <span>Tersalin</span>
-            </>
-          ) : (
-            <>
-              <Copy className="h-3 w-3" />
-              <span>Salin kode</span>
-            </>
-          )}
-        </button>
-      </div>
-      <pre className="overflow-x-auto p-3.5 font-mono text-xs leading-relaxed text-ink">
-        <code>{rawCode}</code>
-      </pre>
-    </div>
-  )
-}
 
 export function MessageItem({
   message,
@@ -82,6 +31,16 @@ export function MessageItem({
       onEditUserMessage?.(message.id, trimmed)
     }
 
+    function handleEditKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsEditing(false)
+        setEditDraft(message.content)
+      } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault()
+        handleSaveEdit()
+      }
+    }
+
     return (
       <article className="group flex flex-col items-end animate-fade-up">
         {isEditing ? (
@@ -90,32 +49,38 @@ export function MessageItem({
               rows={3}
               value={editDraft}
               onChange={(e) => setEditDraft(e.target.value)}
+              onKeyDown={handleEditKeyDown}
               aria-label="Ubah teks pertanyaan"
               className="w-full resize-none bg-transparent text-sm leading-relaxed text-ink focus:outline-none"
             />
-            <div className="mt-2 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditing(false)
-                  setEditDraft(message.content)
-                }}
-                className="rounded-xl border border-line px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-surface-hover hover:text-ink"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEdit}
-                disabled={!editDraft.trim()}
-                className="rounded-xl bg-brand px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover disabled:opacity-50"
-              >
-                Simpan dan Kirim
-              </button>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] text-ink-muted">
+                Ctrl+Enter untuk kirim, Esc untuk batal
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false)
+                    setEditDraft(message.content)
+                  }}
+                  className="rounded-xl border border-line px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-surface-hover hover:text-ink"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={!editDraft.trim()}
+                  className="rounded-xl bg-brand px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-hover disabled:opacity-50"
+                >
+                  Simpan dan Kirim
+                </button>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="max-w-[88%] sm:max-w-[78%]">
+          <div className="max-w-[90%] sm:max-w-[78%]">
             <div className="rounded-2xl rounded-tr-md border border-user-bubble-border bg-user-bubble px-4 py-3 text-sm leading-relaxed text-ink sm:text-[15px]">
               <p className="whitespace-pre-wrap break-words">{message.content}</p>
             </div>
@@ -210,43 +175,7 @@ export function MessageItem({
                   onOpenClaims: () => setIsClaimsOpen(true),
                 })
               ) : (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    pre({ children }) {
-                      return <>{children}</>
-                    },
-                    code({ className, children, ...props }) {
-                      const isBlock = Boolean(className) || String(children).includes('\n')
-                      if (isBlock) {
-                        return (
-                          <CodeBlock className={className}>{children}</CodeBlock>
-                        )
-                      }
-                      return (
-                        <code
-                          className="rounded-md bg-surface-muted px-1.5 py-0.5 font-mono text-[0.85em] text-ink"
-                          {...props}
-                        >
-                          {children}
-                        </code>
-                      )
-                    },
-                    a({ href, children }) {
-                      return (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {children}
-                        </a>
-                      )
-                    },
-                  }}
-                >
-                  {message.content}
-                </ReactMarkdown>
+                <p className="whitespace-pre-wrap">{message.content}</p>
               )}
             </div>
 

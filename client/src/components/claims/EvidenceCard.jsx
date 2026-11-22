@@ -10,7 +10,7 @@ export function EvidenceCard({ evidence }) {
   const domain = extractDomain(evidence.url)
 
   return (
-    <article className="rounded-xl border border-line bg-surface p-3.5 transition-colors hover:border-line-strong">
+    <article className="min-w-0 overflow-hidden rounded-xl border border-line bg-surface p-3.5 transition-colors hover:border-line-strong">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-ink-secondary">

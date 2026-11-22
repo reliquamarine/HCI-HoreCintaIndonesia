@@ -126,6 +126,13 @@ export function CitedMarkdownRenderer({ content, claims, onSelectClaim }) {
             </blockquote>
           )
         },
+        table({ children }) {
+          return (
+            <div className="my-3 w-full overflow-x-auto rounded-xl border border-line">
+              <table className="!my-0">{children}</table>
+            </div>
+          )
+        },
         td({ children }) {
           return <td>{injectClaimBadges(children, claimMap, onSelectClaim)}</td>
         },

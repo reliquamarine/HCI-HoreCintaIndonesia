@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useChat } from '../../hooks/useChat.js'
 import {
   sendChatMessage,
@@ -34,6 +34,12 @@ export function ChatWorkspace() {
   const [flashingClaim, setFlashingClaim] = useState(null)
   const [upgradingMessageId, setUpgradingMessageId] = useState(null)
   const flashTimerRef = useRef(null)
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    }
+  }, [])
 
   const handleJumpToClaim = useCallback((messageId, claimIndex, openPanel) => {
     openPanel?.()

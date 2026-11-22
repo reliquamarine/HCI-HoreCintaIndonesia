@@ -15,15 +15,32 @@ function ClaimsMasterDetail({
   isUpgrading,
   onUpgradeMode,
 }) {
-  const activeClaim =
-    claims.find((c) => c.index === selectedClaimIndex) || claims[0]
+  const activePos = Math.max(
+    0,
+    claims.findIndex((c) => c.index === selectedClaimIndex),
+  )
+  const activeClaim = claims[activePos] || claims[0]
+
+  function handleTabListKeyDown(event) {
+    if (claims.length <= 1) return
+    if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      const next = claims[(activePos + 1) % claims.length]
+      onSelectClaim(next.index)
+    } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault()
+      const prev = claims[(activePos - 1 + claims.length) % claims.length]
+      onSelectClaim(prev.index)
+    }
+  }
 
   return (
     <div className="grid grid-cols-1 gap-3.5 md:grid-cols-[265px_minmax(0,1fr)] md:items-start">
       <div
         role="tablist"
         aria-label="Daftar klaim terverifikasi"
-        className="flex gap-2.5 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0"
+        onKeyDown={handleTabListKeyDown}
+        className="flex min-w-0 gap-2.5 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0"
       >
         {claims.map((claim) => (
           <ClaimListItem
@@ -36,13 +53,15 @@ function ClaimsMasterDetail({
         ))}
       </div>
 
-      <ClaimDetailPanel
-        key={`${activeClaim?.id}_${mode}`}
-        claim={activeClaim}
-        mode={mode}
-        isUpgrading={isUpgrading}
-        onUpgradeMode={onUpgradeMode}
-      />
+      <div className="min-w-0">
+        <ClaimDetailPanel
+          key={`${activeClaim?.id}_${mode}`}
+          claim={activeClaim}
+          mode={mode}
+          isUpgrading={isUpgrading}
+          onUpgradeMode={onUpgradeMode}
+        />
+      </div>
     </div>
   )
 }

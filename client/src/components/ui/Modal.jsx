@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { cn } from '../../utils/cn.js'
 
 export function Modal({
@@ -10,8 +10,15 @@ export function Modal({
   children,
   maxWidthClass = 'max-w-lg',
 }) {
+  const dialogRef = useRef(null)
+
   useEffect(() => {
     if (!open) return undefined
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
 
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
@@ -22,10 +29,12 @@ export function Modal({
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', handleKeyDown)
+    dialogRef.current?.focus()
 
     return () => {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus?.()
     }
   }, [open, onClose])
 
@@ -44,8 +53,10 @@ export function Modal({
         aria-hidden="true"
       />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className={cn(
-          'relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-float)] animate-fade-up',
+          'relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-float)] focus:outline-none animate-fade-up',
           maxWidthClass,
         )}
       >
