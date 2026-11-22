@@ -1,0 +1,33 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@theme",
+      "description": "Mendefinisikan token desain Tailwind CSS v4."
+    },
+    {
+      "name": "@custom-variant",
+      "description": "Mendefinisikan varian kustom Tailwind CSS v4 (misalnya dark mode berbasis class)."
+    },
+    {
+      "name": "@plugin",
+      "description": "Mendaftarkan plugin Tailwind CSS v4."
+    },
+    {
+      "name": "@utility",
+      "description": "Mendefinisikan class utilitas kustom Tailwind CSS v4."
+    },
+    {
+      "name": "@source",
+      "description": "Menentukan jalur file sumber untuk pemindaian class Tailwind CSS v4."
+    },
+    {
+      "name": "@variant",
+      "description": "Menerapkan varian Tailwind CSS v4 pada aturan CSS."
+    },
+    {
+      "name": "@apply",
+      "description": "Menerapkan class utilitas Tailwind CSS di dalam aturan CSS."
+    }
+  ]
+}

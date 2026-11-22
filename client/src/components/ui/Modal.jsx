@@ -56,7 +56,7 @@ export function Modal({
         ref={dialogRef}
         tabIndex={-1}
         className={cn(
-          'relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-float)] focus:outline-none animate-fade-up',
+          'relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-(--shadow-float) focus:outline-none animate-fade-up',
           maxWidthClass,
         )}
       >

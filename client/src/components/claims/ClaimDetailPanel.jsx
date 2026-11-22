@@ -56,7 +56,7 @@ export function ClaimDetailPanel({
     <section
       role="tabpanel"
       aria-label={`Detail Klaim ${claim.index}`}
-      className="rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)] sm:p-5"
+      className="rounded-2xl border border-line bg-surface p-4 shadow-(--shadow-card) sm:p-5"
     >
       {/* Top metadata badges */}
       <div className="flex flex-wrap items-center gap-2">

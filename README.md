@@ -8,7 +8,7 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 
 ## Anggota Kelompok
 
-**Kelompok Hore Cinta Indonesia**
+### Kelompok Hore Cinta Indonesia
 
 | No | Nama | NIM |
 | :--- | :--- | :--- |
@@ -23,6 +23,7 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 ## Fitur Utama
 
 ### Pengalaman Percakapan
+
 - **Antarmuka Chatbot Modern Nusantara**: Mendukung tema **Terang** dan **Gelap** dengan kontras tinggi sesuai standar aksesibilitas WCAG 2.1 AA.
 - **Layar Awal Interaktif**: Dilengkapi kartu contoh pertanyaan awal agar pengguna dapat langsung mencoba alur verifikasi klaim.
 - **Rendering Markdown Lengkap**: Mendukung paragraf terstruktur, daftar, tabel responsif, kutipan, dan blok kode dengan tombol salin.
@@ -30,6 +31,7 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 - **Manajemen Riwayat (Mode Tamu Lokal)**: Multi-sesi percakapan tersimpan otomatis di `localStorage`, dikelompokkan berdasarkan waktu (*Hari Ini*, *Kemarin*, *7 Hari Terakhir*, *Lebih Lama*), dilengkapi pencarian instan (`Ctrl+K`), ubah judul inline, dan dialog konfirmasi hapus.
 
 ### Verifikasi Klaim & Referensi Sumber (KBP)
+
 - **Penanda Sitasi Inline (`[1]`, `[2]`)**: Hover menampilkan pratinjau singkat status klaim; klik langsung membuka dan menyorot detail bukti klaim terkait.
 - **Panel Ringkasan Klaim (Master-Detail)**:
   - **Daftar Klaim**: Menampilkan status verifikasi (`Didukung`, `Sebagian Didukung`, `Bertentangan`, `Belum Terverifikasi`), skor **Keyakinan**, indikator bilah progres, dan jumlah sumber.
@@ -83,10 +85,12 @@ HCI-HoreCintaIndonesia/
 ## Prasyarat & Cara Menjalankan
 
 ### Prasyarat
+
 - **Node.js** versi `22.x` atau lebih baru
 - **npm** versi `10.x` atau lebih baru
 
 ### 1. Clone Repository & Pasang Dependensi
+
 Jalankan perintah berikut di folder root proyek untuk memasang seluruh dependensi root, `client`, dan `server` sekaligus:
 
 ```bash
@@ -96,6 +100,7 @@ npm run install:all
 ```
 
 ### 2. Jalankan Mode Development
+
 Menjalankan server Express (`http://localhost:5000`) dan client Vite (`http://localhost:5173`) bersamaan dalam satu terminal:
 
 ```bash
@@ -123,6 +128,7 @@ npm run build --prefix client
 Saat ini frontend berjalan menggunakan lapisan simulasi di `client/src/services/chatService.js` agar seluruh fitur antarmuka dan verifikasi klaim dapat diuji secara mandiri.
 
 Ketika endpoint backend LLM selesai dibangun:
+
 1. Sediakan endpoint `POST /api/chat` pada `server/index.js` (Vite sudah mem-proxy `/api` ke `http://localhost:5000`).
 2. Ubah `USE_LIVE_API` menjadi `true` pada `client/src/services/chatService.js`.
 
@@ -178,6 +184,7 @@ Ketika endpoint backend LLM selesai dibangun:
 ```
 
 Nilai enum yang didukung antarmuka:
+
 - `verdict`: `"SUPPORTED"`, `"PARTIAL"`, `"CONTRADICTED"`, `"UNVERIFIED"`
 - `stance`: `"SUPPORTS"`, `"NEUTRAL"`, `"CONTRADICTS"`
 - `sourceType`: `"WEB_SEARCH"`, `"JOURNAL"`, `"OFFICIAL"`, `"ENCYCLOPEDIA"`

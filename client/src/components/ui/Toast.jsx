@@ -14,7 +14,7 @@ export function Toast() {
       role="status"
       aria-live="polite"
     >
-      <div className="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink shadow-[var(--shadow-float)] animate-fade-up">
+      <div className="pointer-events-auto flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink shadow-(--shadow-float) animate-fade-up">
         {isSuccess ? (
           <CheckCircle2
             className="h-4 w-4 shrink-0"

@@ -25,7 +25,7 @@ export function WelcomeScreen({ onSelectPrompt }) {
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6">
       <div className="w-full max-w-3xl animate-fade-up">
         <div className="flex flex-col items-center text-center">
-          <BrandLogo className="h-14 w-14 shadow-[var(--shadow-card)]" />
+          <BrandLogo className="h-14 w-14 shadow-(--shadow-card)" />
 
           <h1 className="mt-5 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             Halo, apa yang ingin kamu pastikan hari ini?

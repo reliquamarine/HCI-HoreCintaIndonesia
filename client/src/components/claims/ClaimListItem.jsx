@@ -25,9 +25,9 @@ export function ClaimListItem({
       aria-selected={isSelected}
       onClick={() => onSelect(claim.index)}
       className={cn(
-        'w-full min-w-[235px] shrink-0 rounded-2xl border bg-surface p-3.5 text-left transition-all md:min-w-0',
+        'w-full min-w-60 shrink-0 rounded-2xl border bg-surface p-3.5 text-left transition-all md:min-w-0',
         isSelected
-          ? 'shadow-[var(--shadow-card)]'
+          ? 'shadow-(--shadow-card)'
           : 'border-line hover:border-line-strong hover:bg-surface-hover/50',
         isFlashing && 'animate-claim-flash',
       )}

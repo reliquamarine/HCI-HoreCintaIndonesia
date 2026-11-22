@@ -27,7 +27,7 @@ export function InlineClaimBadge({ claim, onSelect }) {
       {hovered && (
         <span
           role="tooltip"
-          className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-72 -translate-x-1/2 rounded-xl border border-line bg-surface p-3 text-left shadow-[var(--shadow-float)] sm:block animate-fade-up"
+          className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 hidden w-72 -translate-x-1/2 rounded-xl border border-line bg-surface p-3 text-left shadow-(--shadow-float) sm:block animate-fade-up"
         >
           <span className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-ink">

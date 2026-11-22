@@ -70,7 +70,7 @@ export function MessageList({
         <button
           type="button"
           onClick={() => scrollToBottom('smooth')}
-          className="absolute bottom-4 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-2 text-xs font-semibold text-ink shadow-[var(--shadow-float)] transition-colors hover:bg-surface-hover animate-fade-up"
+          className="absolute bottom-4 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-surface px-3.5 py-2 text-xs font-semibold text-ink shadow-(--shadow-float) transition-colors hover:bg-surface-hover animate-fade-up"
           aria-label="Gulir ke pesan terbaru"
         >
           <ArrowDown className="h-3.5 w-3.5 text-brand" />

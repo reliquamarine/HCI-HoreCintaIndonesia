@@ -44,7 +44,7 @@ export function MessageItem({
     return (
       <article className="group flex flex-col items-end animate-fade-up">
         {isEditing ? (
-          <div className="w-full max-w-2xl rounded-2xl border border-brand bg-surface p-3 shadow-[var(--shadow-card)]">
+          <div className="w-full max-w-2xl rounded-2xl border border-brand bg-surface p-3 shadow-(--shadow-card)">
             <textarea
               rows={3}
               value={editDraft}
@@ -82,7 +82,7 @@ export function MessageItem({
         ) : (
           <div className="max-w-[90%] sm:max-w-[78%]">
             <div className="rounded-2xl rounded-tr-md border border-user-bubble-border bg-user-bubble px-4 py-3 text-sm leading-relaxed text-ink sm:text-[15px]">
-              <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              <p className="whitespace-pre-wrap wrap-break-word">{message.content}</p>
             </div>
             <div className="mt-1 flex items-center justify-end gap-2 px-1">
               {timeText && (
@@ -169,7 +169,7 @@ export function MessageItem({
           </div>
         ) : (
           <>
-            <div className="chat-prose max-w-3xl break-words">
+            <div className="chat-prose max-w-3xl wrap-break-word">
               {renderMarkdown ? (
                 renderMarkdown(message, {
                   onOpenClaims: () => setIsClaimsOpen(true),

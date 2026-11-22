@@ -123,7 +123,7 @@ export function TopHeader({
             className="group flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-left transition-colors hover:bg-surface-hover"
             title="Klik untuk mengubah judul percakapan"
           >
-            <span className="truncate text-sm font-semibold text-ink max-w-[160px] sm:max-w-xs md:max-w-md">
+            <span className="truncate text-sm font-semibold text-ink max-w-40 sm:max-w-xs md:max-w-md">
               {activeSession?.title || 'Percakapan Baru'}
             </span>
             <Pencil className="h-3 w-3 shrink-0 text-ink-muted opacity-0 transition-opacity group-hover:opacity-100" />

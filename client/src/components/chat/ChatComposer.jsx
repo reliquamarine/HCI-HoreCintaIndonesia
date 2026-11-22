@@ -41,9 +41,9 @@ export function ChatComposer({
   }
 
   return (
-    <div className="shrink-0 bg-gradient-to-t from-canvas via-canvas to-canvas/0 px-3 pt-2 pb-3 sm:px-6 sm:pb-4">
+    <div className="shrink-0 bg-linear-to-t from-canvas via-canvas to-canvas/0 px-3 pt-2 pb-3 sm:px-6 sm:pb-4">
       <div className="mx-auto w-full max-w-4xl">
-        <div className="rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)] transition-colors focus-within:border-brand">
+        <div className="rounded-2xl border border-line bg-surface shadow-(--shadow-card) transition-colors focus-within:border-brand">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -53,7 +53,7 @@ export function ChatComposer({
             maxLength={MAX_LENGTH}
             placeholder="Ajukan pertanyaan atau klaim yang ingin diverifikasi..."
             aria-label="Tulis pertanyaan untuk FritoGrafi"
-            className="block max-h-[168px] w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-ink placeholder:text-ink-muted focus:outline-none sm:text-[15px]"
+            className="block max-h-42 w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-ink placeholder:text-ink-muted focus:outline-none sm:text-[15px]"
           />
 
           <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-2.5 pt-1">

@@ -43,7 +43,7 @@ export function AppShell({ children }) {
     <div className="flex h-dvh w-full overflow-hidden bg-canvas text-ink">
       <a
         href="#main-chat-area"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-[var(--shadow-float)]"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-(--shadow-float)"
       >
         Lewati ke area percakapan
       </a>
@@ -52,11 +52,11 @@ export function AppShell({ children }) {
       <div
         className={cn(
           'hidden shrink-0 transition-[width] duration-200 ease-out lg:block overflow-hidden',
-          isDesktopSidebarOpen ? 'w-[280px]' : 'w-0',
+          isDesktopSidebarOpen ? 'w-70' : 'w-0',
         )}
         aria-hidden={!isDesktopSidebarOpen}
       >
-        <div className="h-full w-[280px]">
+        <div className="h-full w-70">
           <Sidebar searchInputRef={desktopSearchRef} />
         </div>
       </div>
@@ -74,7 +74,7 @@ export function AppShell({ children }) {
             onClick={() => setIsMobileSidebarOpen(false)}
             aria-hidden="true"
           />
-          <div className="relative z-10 h-full w-[290px] max-w-[85vw] shadow-[var(--shadow-float)]">
+          <div className="relative z-10 h-full w-72 max-w-[85vw] shadow-(--shadow-float)">
             <Sidebar
               searchInputRef={mobileSearchRef}
               onCloseMobile={() => setIsMobileSidebarOpen(false)}
