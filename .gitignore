@@ -1,0 +1,14 @@
+# Abaikan semua folder node_modules (baik di client maupun server)
+node_modules/
+
+# Abaikan file environment / rahasia (API key, password database)
+.env
+.env.local
+
+# Abaikan hasil build produksi
+dist/
+build/
+
+# Abaikan file sistem & log
+.DS_Store
+npm-debug.log*
