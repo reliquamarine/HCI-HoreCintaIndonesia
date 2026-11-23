@@ -71,9 +71,17 @@ function createInitialState() {
     const sorted = [...stored].sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     )
+    let keptEmpty = false
+    const deduplicated = sorted.filter((session) => {
+      if (session.messages.length === 0) {
+        if (keptEmpty) return false
+        keptEmpty = true
+      }
+      return true
+    })
     return {
-      sessions: sorted,
-      activeSessionId: sorted[0].id,
+      sessions: deduplicated,
+      activeSessionId: deduplicated[0].id,
     }
   }
   const initialSession = buildEmptySession()
@@ -92,11 +100,16 @@ function deriveTitleFromText(text) {
 function chatReducer(state, action) {
   switch (action.type) {
     case 'CREATE_SESSION': {
-      const existingEmpty = state.sessions.find(
-        (s) => s.id === state.activeSessionId && s.messages.length === 0,
-      )
+      const existingEmpty = state.sessions.find((s) => s.messages.length === 0)
       if (existingEmpty) {
-        return state
+        const now = new Date().toISOString()
+        const refreshed = { ...existingEmpty, updatedAt: now }
+        const others = state.sessions.filter((s) => s.id !== existingEmpty.id)
+        return {
+          ...state,
+          sessions: [refreshed, ...others],
+          activeSessionId: existingEmpty.id,
+        }
       }
       const next = action.payload || buildEmptySession()
       return {
