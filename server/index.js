@@ -43,6 +43,14 @@ app.use(
 
 app.use(express.json({ limit: '2mb' }))
 
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'fritografi-api',
+    status: 'ok',
+    health: '/api/health',
+  })
+})
+
 app.get('/api/health', (_req, res) => {
   const missingEnv = validateConfig()
   res.json({

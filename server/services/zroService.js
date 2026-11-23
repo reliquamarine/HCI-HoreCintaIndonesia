@@ -3,12 +3,13 @@ const {
   cleanForbiddenSeparators,
   cleanMarkdownReply,
   extractJsonObject,
+  looksLikeRawJson,
   normalizeChatPayload,
 } = require('../utils/responseNormalizer')
 
 async function callZroChat({
   messages,
-  maxTokens = 3072,
+  maxTokens = 8192,
   temperature = 0.2,
   reasoningEffort = 'low',
   jsonMode = false,
@@ -32,6 +33,7 @@ async function callZroChat({
     max_tokens: maxTokens,
     temperature,
     reasoning_effort: reasoningEffort,
+    stream: true,
   }
 
   if (jsonMode) {
@@ -62,7 +64,9 @@ async function callZroChat({
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      const error = new Error('API key model AI (Zro) tidak valid atau kedaluwarsa.')
+      const error = new Error(
+        'API key model AI (Zro) tidak valid atau kedaluwarsa.',
+      )
       error.statusCode = 502
       throw error
     }
@@ -80,12 +84,71 @@ async function callZroChat({
     throw error
   }
 
-  const data = await response.json()
-  const message = data?.choices?.[0]?.message || {}
+  const contentType = response.headers.get('content-type') || ''
+  if (!contentType.includes('text/event-stream') || !response.body) {
+    const data = await response.json()
+    const message = data?.choices?.[0]?.message || {}
+    return {
+      content: String(message.content || '').trim(),
+      reasoningContent: String(message.reasoning_content || '').trim(),
+      finishReason: data?.choices?.[0]?.finish_reason || '',
+    }
+  }
+
+  // Baca SSE stream untuk menjaga koneksi tetap aktif pada model penalaran
+  let content = ''
+  let reasoningContent = ''
+  let finishReason = ''
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    for await (const chunk of response.body) {
+      buffer += decoder.decode(chunk, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim()
+        if (!line.startsWith('data:')) continue
+        const payload = line.slice(5).trim()
+        if (!payload || payload === '[DONE]') continue
+        try {
+          const parsed = JSON.parse(payload)
+          const choice = parsed?.choices?.[0]
+          if (choice?.finish_reason) {
+            finishReason = choice.finish_reason
+          }
+          const delta = choice?.delta
+          if (typeof delta?.content === 'string') {
+            content += delta.content
+          }
+          if (typeof delta?.reasoning_content === 'string') {
+            reasoningContent += delta.reasoning_content
+          }
+        } catch {
+          // Abaikan potongan chunk non-JSON
+        }
+      }
+    }
+  } catch (err) {
+    if (err?.name === 'AbortError' && signal?.aborted) {
+      throw err
+    }
+    if (!content.trim()) {
+      const error = new Error(
+        'Koneksi streaming ke model AI terputus sebelum jawaban selesai. Silakan coba lagi.',
+      )
+      error.statusCode = 504
+      throw error
+    }
+  }
+
   return {
-    content: String(message.content || '').trim(),
-    reasoningContent: String(message.reasoning_content || '').trim(),
-    finishReason: data?.choices?.[0]?.finish_reason || '',
+    content: content.trim(),
+    reasoningContent: reasoningContent.trim(),
+    finishReason,
   }
 }
 
@@ -93,7 +156,20 @@ function formatHistoryContext(history = []) {
   if (!Array.isArray(history) || history.length === 0) return ''
   return history
     .slice(-6)
-    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+    .filter((m) => {
+      if (!m || (m.role !== 'user' && m.role !== 'assistant') || !m.content) {
+        return false
+      }
+      if (
+        m.role === 'assistant' &&
+        (looksLikeRawJson(m.content) ||
+          m.content.includes('kesulitan memformat hasil verifikasi') ||
+          m.content.includes('terpotong sebelum selesai diformat'))
+      ) {
+        return false
+      }
+      return true
+    })
     .map((m) => {
       const speaker = m.role === 'user' ? 'Pengguna' : 'FritoGrafi'
       return `${speaker}: ${String(m.content).slice(0, 420)}`
@@ -132,7 +208,7 @@ async function handleSmallTalk({ query, history, signal }) {
 
   const result = await callZroChat({
     messages,
-    maxTokens: 512,
+    maxTokens: 1536,
     temperature: 0.4,
     reasoningEffort: 'low',
     timeoutMs: 30000,
@@ -168,7 +244,7 @@ async function generateSearchQueries({
     .join('\n\n')
 
   const promptParts = [
-    'Buat 1 sampai 2 kueri pencarian web singkat dan faktual (maksimal 12 kata) untuk memverifikasi pertanyaan atau isi dokumen/gambar pengguna.',
+    'Buat 1 sampai 2 kueri pencarian web singkat dan faktual (maksimal 12 kata) dalam Bahasa Indonesia atau Bahasa Inggris (jangan gunakan bahasa lain) untuk memverifikasi pertanyaan atau isi dokumen/gambar pengguna.',
     'Jawab HANYA JSON: {"queries": ["kueri 1"]}.',
   ]
 
@@ -180,7 +256,7 @@ async function generateSearchQueries({
   }
   if (images.length > 0) {
     promptParts.push(
-      `Pengguna melampirkan ${images.length} gambar. Baca klaim utama di gambar untuk menyusun kueri.`,
+      `Pengguna melampirkan ${images.length} gambar. Identifikasi subjek, teks, atau karakter utama pada gambar untuk menyusun kueri pencarian yang tepat.`,
     )
   }
   promptParts.push(`Pertanyaan pengguna: ${query}`)
@@ -198,7 +274,7 @@ async function generateSearchQueries({
           content: buildMultimodalUserContent(promptParts.join('\n\n'), images),
         },
       ],
-      maxTokens: 512,
+      maxTokens: 1536,
       temperature: 0.1,
       reasoningEffort: 'low',
       jsonMode: true,
@@ -277,15 +353,16 @@ async function synthesizeVerifiedAnswer({
 
   const systemPrompt = [
     'Kamu adalah FritoGrafi, asisten verifikasi fakta berbahasa Indonesia.',
-    'Aturan:',
-    '1. Seluruh output wajib Bahasa Indonesia natural. Jangan gunakan titik tengah atau em dash. Jangan tulis kode internal seperti W1 atau D1 pada teks reply, summary, atau reasoning; sebut nama penerbit atau nama file secara natural.',
-    '2. Tulis "reply" dalam Markdown ringkas dan sisipkan penanda sitasi inline [1], [2] sesuai urutan array "claims".',
-    '3. Buat 1 sampai 3 objek pada "claims". Setiap item "evidence" WAJIB merujuk "sourceId" valid dari daftar sumber ("W1", "W2", atau "D1"). Jika ada dokumen/gambar pengguna (D1, dst.), sertakan juga sebagai salah satu evidence pada klaim yang membahas isinya. Dilarang mengarang URL.',
+    'Aturan wajib:',
+    '1. BAHASA WAJIB 100% BAHASA INDONESIA: Meskipun sumber web berbahasa Inggris, Turki, Mandarin, atau bahasa asing lain, seluruh teks "reply", "statement", "summary", "reasoning", dan "followUps" WAJIB ditulis dalam Bahasa Indonesia yang alami (hanya nama karakter, judul karya, atau istilah resmi yang boleh tetap asli). Jangan gunakan titik tengah atau em dash. Jangan tulis kode internal W1/D1 di teks narasi.',
+    '2. Tulis "reply" dalam Markdown ringkas dan sisipkan penanda sitasi inline [1], [2], dst. HANYA sesuai nomor urut array "claims" (jika ada 2 klaim, HANYA gunakan [1] dan [2], JANGAN pernah menulis [3] atau [5] yang merujuk jumlah sumber web).',
+    '3. Buat 1 sampai 3 objek pada "claims". Setiap item "evidence" WAJIB merujuk "sourceId" valid dari daftar sumber ("W1", "W2", atau "D1"). Jika ada dokumen atau gambar pengguna (D1, dst.), sertakan juga sebagai salah satu evidence pada klaim yang membahas isinya. Dilarang mengarang URL.',
     '4. Enum valid: verdict ("SUPPORTED"|"PARTIAL"|"CONTRADICTED"|"UNVERIFIED"), stance ("SUPPORTS"|"NEUTRAL"|"CONTRADICTS"), skor 0.00 sampai 1.00.',
     isComprehensive
       ? '5. Mode MENDALAM: isi "reasoning" tiap klaim dengan 2 sampai 4 poin bernomor singkat tentang kekuatan bukti, kredibilitas, dan batasan konteks.'
       : '5. Mode DASAR: isi "reasoning" dengan string kosong "".',
-    '6. Kembalikan HANYA JSON sesuai skema: {"reply":"...","claims":[{"statement":"...","verdict":"SUPPORTED","confidence":0.85,"summary":"...","reasoning":"","evidence":[{"sourceId":"W1","stance":"SUPPORTS","credibility":0.85,"relevance":0.9,"snippet":"...","locationLabel":""}]}],"followUps":["...","..."]}.',
+    '6. PENTING untuk "followUps": tulis 2 sampai 3 pertanyaan lanjutan singkat (maksimal 12 kata) dari SUDUT PANDANG PENGGUNA yang akan diklik untuk bertanya ke AI (contoh: "Bagaimana perbandingan hasil studi ini dengan riset lain?", "Jelaskan istilah Microk8s dengan bahasa sederhana"). DILARANG menulis penawaran AI seperti "Mau saya...", "Perlu saya...", atau "Apakah Anda ingin saya...".',
+    '7. Kembalikan HANYA JSON valid: {"reply":"...","claims":[{"statement":"...","verdict":"SUPPORTED","confidence":0.85,"summary":"...","reasoning":"","evidence":[{"sourceId":"W1","stance":"SUPPORTS","credibility":0.85,"relevance":0.9,"snippet":"...","locationLabel":""}]}],"followUps":["...","..."]}.',
   ].join('\n')
 
   const userParts = []
@@ -297,30 +374,68 @@ async function synthesizeVerifiedAnswer({
     sourcePool ||
       'Tidak ada sumber web ditemukan. Tandai klaim faktual sebagai UNVERIFIED bila tidak cukup bukti.',
   )
+  userParts.push(
+    'Pengingat penting: Balas HANYA dalam Bahasa Indonesia dan pastikan penanda [1], [2] pada "reply" tidak melebihi jumlah objek di "claims".',
+  )
 
-  const result = await callZroChat({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      {
-        role: 'user',
-        content: buildMultimodalUserContent(userParts.join('\n\n'), images),
-      },
-    ],
-    maxTokens: isComprehensive ? 4096 : 2800,
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    {
+      role: 'user',
+      content: buildMultimodalUserContent(userParts.join('\n\n'), images),
+    },
+  ]
+
+  const userSources = [...documents, ...images]
+  let result = await callZroChat({
+    messages,
+    maxTokens: isComprehensive ? 10240 : 8192,
     temperature: 0.2,
-    reasoningEffort: isComprehensive ? 'medium' : 'low',
+    reasoningEffort: 'low',
     jsonMode: true,
     timeoutMs: 85000,
     signal,
   })
 
-  const userSources = [...documents, ...images]
-  return normalizeChatPayload({
+  let normalized = normalizeChatPayload({
     rawText: result.content,
     webSources,
     userSources,
     mode,
   })
+
+  // Retry 1 kali otomatis bila output kosong atau JSON gagal terurai
+  if (normalized.parseFailed && !signal?.aborted) {
+    result = await callZroChat({
+      messages: [
+        {
+          role: 'system',
+          content: `${systemPrompt}\nPastikan output berupa 1 objek JSON lengkap dan ringkas agar tidak terpotong.`,
+        },
+        messages[1],
+      ],
+      maxTokens: 10240,
+      temperature: 0.1,
+      reasoningEffort: 'low',
+      jsonMode: true,
+      timeoutMs: 85000,
+      signal,
+    })
+
+    normalized = normalizeChatPayload({
+      rawText: result.content,
+      webSources,
+      userSources,
+      mode,
+    })
+  }
+
+  return {
+    reply: normalized.reply,
+    mode: normalized.mode,
+    claims: normalized.claims,
+    followUps: normalized.followUps,
+  }
 }
 
 async function deepenClaimsReasoning({ query = '', claims = [], signal }) {
@@ -358,7 +473,7 @@ async function deepenClaimsReasoning({ query = '', claims = [], signal }) {
         content: `Pertanyaan: ${query}\n\nKlaim dan bukti:\n${JSON.stringify(compactClaims)}`,
       },
     ],
-    maxTokens: 2800,
+    maxTokens: 6144,
     temperature: 0.2,
     reasoningEffort: 'low',
     jsonMode: true,

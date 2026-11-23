@@ -81,7 +81,7 @@ async function searchSingleQuery({ query, mode = 'basic', maxResults, signal }) 
 
   const isComprehensive = mode === 'comprehensive'
   const searchDepth = isComprehensive ? 'advanced' : 'basic'
-  const limit = maxResults || (isComprehensive ? 7 : 5)
+  const limit = maxResults || (isComprehensive ? 6 : 5)
 
   const timeoutSignal = AbortSignal.timeout(18000)
   const combinedSignal = signal
@@ -145,7 +145,7 @@ async function searchSingleQuery({ query, mode = 'basic', maxResults, signal }) 
       snippet: String(item.content || '')
         .replace(/\s+/g, ' ')
         .trim()
-        .slice(0, 520),
+        .slice(0, 360),
       score:
         typeof item.score === 'number' && !Number.isNaN(item.score)
           ? Math.min(1, Math.max(0, item.score))
@@ -163,7 +163,7 @@ async function searchWebSources({ queries, mode = 'basic', signal }) {
   if (cleanQueries.length === 0) return []
 
   const isComprehensive = mode === 'comprehensive'
-  const targetTotal = isComprehensive ? 7 : 5
+  const targetTotal = isComprehensive ? 6 : 5
   const perQueryLimit =
     cleanQueries.length > 1
       ? Math.ceil(targetTotal / cleanQueries.length) + 1

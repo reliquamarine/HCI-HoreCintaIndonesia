@@ -7,6 +7,12 @@ const VALID_VERDICTS = new Set([
 
 const VALID_STANCES = new Set(['SUPPORTS', 'NEUTRAL', 'CONTRADICTS'])
 
+const AI_POV_FOLLOWUP_PATTERNS = [
+  /^(mau|perlu|ingin|boleh)\s+(saya|aku)\b/i,
+  /^apakah\s+(anda|kamu)\s+(ingin|mau|perlu)\s+(saya|aku)\b/i,
+  /\b(mau saya|perlu saya|ingin saya|bisa saya bantu|struktur json|format json|prosa biasa)\b/i,
+]
+
 function cleanForbiddenSeparators(text) {
   if (typeof text !== 'string') return ''
   return text
@@ -66,6 +72,26 @@ function extractJsonObject(rawText) {
   }
 }
 
+function recoverReplyFromTruncatedJson(rawText) {
+  if (typeof rawText !== 'string') return ''
+  const match = rawText.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+  if (!match || !match[1]) return ''
+  try {
+    return JSON.parse(`"${match[1]}"`)
+  } catch {
+    return match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"')
+  }
+}
+
+function looksLikeRawJson(text) {
+  const trimmed = String(text || '').trim()
+  return (
+    trimmed.startsWith('{') ||
+    trimmed.startsWith('```json') ||
+    /"claims"\s*:\s*\[/.test(trimmed)
+  )
+}
+
 function buildSourceLookup(webSources = [], userSources = []) {
   const byId = new Map()
   const byUrl = new Map()
@@ -91,7 +117,9 @@ function normalizeEvidenceItem(rawEvidence, idx, claimIdx, lookup) {
   let resolved = rawId ? lookup.byId.get(rawId) : null
 
   if (!resolved && rawEvidence.url) {
-    const matchedWeb = lookup.byUrl.get(String(rawEvidence.url).trim().toLowerCase())
+    const matchedWeb = lookup.byUrl.get(
+      String(rawEvidence.url).trim().toLowerCase(),
+    )
     if (matchedWeb) {
       resolved = { kind: 'web', data: matchedWeb }
     }
@@ -210,11 +238,29 @@ function normalizeClaims(rawClaims, mode, lookup) {
   return normalized
 }
 
+function sanitizeReplyCitations(reply, claimCount) {
+  if (typeof reply !== 'string') return ''
+  return reply
+    .replace(/\[(\d+)\]/g, (match, numStr) => {
+      const n = Number(numStr)
+      if (!Number.isInteger(n) || n < 1 || n > claimCount) {
+        return ''
+      }
+      return match
+    })
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/ +([.,!?;:])/g, '$1')
+    .trim()
+}
+
 function normalizeFollowUps(rawFollowUps) {
   if (!Array.isArray(rawFollowUps)) return []
   return rawFollowUps
     .map((q) => cleanForbiddenSeparators(String(q || '')))
-    .filter((q) => q.length >= 6 && q.length <= 140)
+    .filter((q) => {
+      if (q.length < 6 || q.length > 130) return false
+      return !AI_POV_FOLLOWUP_PATTERNS.some((pattern) => pattern.test(q))
+    })
     .slice(0, 3)
 }
 
@@ -228,54 +274,34 @@ function normalizeChatPayload({
   const lookup = buildSourceLookup(webSources, userSources)
 
   if (!parsed || typeof parsed !== 'object') {
-    const fallbackReply = cleanMarkdownReply(
-      String(rawText || '')
-        .replace(/<think>[\s\S]*?<\/think>/gi, '')
-        .trim(),
-    )
-    const fallbackEvidence = webSources.slice(0, 3).map((ws, idx) => ({
-      id: `ev_1_${idx + 1}`,
-      sourceType: ws.sourceType || 'WEB_SEARCH',
-      stance: 'NEUTRAL',
-      credibility: 0.75,
-      relevance: clampScore(ws.score, 0.75),
-      title: cleanForbiddenSeparators(ws.title),
-      url: ws.url,
-      snippet: cleanForbiddenSeparators(ws.snippet),
-    }))
+    const stripped = String(rawText || '')
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .trim()
+
+    // Cegah JSON mentah bocor ke chat: ekstrak hanya field reply bila JSON terpotong
+    let safeReply = ''
+    if (looksLikeRawJson(stripped)) {
+      safeReply = cleanMarkdownReply(recoverReplyFromTruncatedJson(stripped))
+    } else {
+      safeReply = cleanMarkdownReply(stripped)
+    }
 
     return {
       reply:
-        fallbackReply ||
-        'Maaf, sistem kesulitan memformat hasil verifikasi secara lengkap. Silakan coba kirim ulang pertanyaanmu.',
+        safeReply ||
+        'Maaf, respons dari model AI terpotong sebelum selesai diformat. Silakan tekan Jawab Ulang untuk mencoba lagi.',
       mode,
-      claims:
-        fallbackEvidence.length > 0
-          ? [
-              {
-                id: 'claim_1',
-                index: 1,
-                verdict: 'UNVERIFIED',
-                confidence: 0.5,
-                statement:
-                  'Jawaban disusun dari pencarian sumber terkait namun pemecahan klaim terstruktur perlu diverifikasi ulang.',
-                summary:
-                  'Sumber rujukan di bawah ditemukan relevan dengan pertanyaanmu dan dapat diperiksa langsung.',
-                reasoning: '',
-                keySources: fallbackEvidence.map((ev) => ({
-                  title: ev.title,
-                  url: ev.url,
-                })),
-                evidence: fallbackEvidence,
-              },
-            ]
-          : [],
+      claims: [],
       followUps: [],
+      parseFailed: true,
     }
   }
 
-  const reply = cleanMarkdownReply(parsed.reply || '')
   const claims = normalizeClaims(parsed.claims, mode, lookup)
+  const reply = sanitizeReplyCitations(
+    cleanMarkdownReply(parsed.reply || ''),
+    claims.length,
+  )
   const followUps = normalizeFollowUps(parsed.followUps)
 
   return {
@@ -285,12 +311,17 @@ function normalizeChatPayload({
     mode,
     claims,
     followUps,
+    parseFailed: false,
   }
 }
 
 module.exports = {
   cleanForbiddenSeparators,
   cleanMarkdownReply,
+  sanitizeReplyCitations,
   extractJsonObject,
+  recoverReplyFromTruncatedJson,
+  looksLikeRawJson,
+  normalizeFollowUps,
   normalizeChatPayload,
 }
