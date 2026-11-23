@@ -1,7 +1,7 @@
 import { matchMockScenario } from '../data/mockChatData.js'
 
-// Ubah ke true saat endpoint POST /api/chat di backend Express sudah aktif
-const USE_LIVE_API = false
+const API_BASE = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '')
+const USE_LIVE_API = import.meta.env.VITE_USE_MOCK !== 'true'
 
 function waitWithAbort(ms, signal) {
   return new Promise((resolve, reject) => {
@@ -21,6 +21,40 @@ function waitWithAbort(ms, signal) {
   })
 }
 
+async function parseErrorMessage(response) {
+  try {
+    const body = await response.json()
+    if (body && typeof body.error === 'string' && body.error.trim()) {
+      return body.error.trim()
+    }
+  } catch {
+    // Ignore JSON parse errors
+  }
+  if (response.status === 429) {
+    return 'Terlalu banyak permintaan dalam waktu singkat. Silakan tunggu sebentar lalu coba lagi.'
+  }
+  if (response.status === 413) {
+    return 'Ukuran file lampiran melebihi batas yang diizinkan server.'
+  }
+  return `Permintaan ke server gagal dengan kode ${response.status}.`
+}
+
+async function revealTextSmoothly(fullText, onToken, signal) {
+  const tokens = String(fullText || '').split(/(\s+)/)
+  if (tokens.length <= 12) {
+    onToken?.(fullText)
+    return
+  }
+
+  let accumulated = ''
+  const step = Math.max(4, Math.ceil(tokens.length / 26))
+  for (let i = 0; i < tokens.length; i += step) {
+    accumulated += tokens.slice(i, i + step).join('')
+    onToken?.(accumulated)
+    await waitWithAbort(12, signal)
+  }
+}
+
 export async function sendChatMessage({
   query,
   sessionId,
@@ -38,45 +72,66 @@ export async function sendChatMessage({
   if (USE_LIVE_API) {
     onPhaseChange?.(hasFiles ? 'reading_files' : 'verifying')
 
-    let response
-    if (hasFiles) {
-      const formData = new FormData()
-      formData.append('message', query)
-      formData.append('sessionId', sessionId)
-      formData.append('mode', mode)
-      formData.append('history', JSON.stringify(history || []))
-      for (const file of files) {
-        formData.append('files', file)
-      }
+    const slowTimer = setTimeout(() => {
+      onPhaseChange?.('waking_server')
+    }, 14000)
 
-      response = await fetch('/api/chat', {
-        method: 'POST',
-        body: formData,
-        signal,
-      })
-    } else {
-      response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: query, sessionId, history, mode }),
-        signal,
-      })
+    let response
+    try {
+      const endpoint = `${API_BASE}/api/chat`
+      if (hasFiles) {
+        const formData = new FormData()
+        formData.append('message', query)
+        formData.append('sessionId', sessionId || '')
+        formData.append('mode', mode)
+        formData.append('history', JSON.stringify(history || []))
+        for (const file of files) {
+          formData.append('files', file)
+        }
+
+        response = await fetch(endpoint, {
+          method: 'POST',
+          body: formData,
+          signal,
+        })
+      } else {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: query, sessionId, history, mode }),
+          signal,
+        })
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError') {
+        throw err
+      }
+      throw new Error(
+        'Tidak dapat terhubung ke server FritoGrafi. Pastikan server backend aktif atau periksa koneksi internetmu.',
+      )
+    } finally {
+      clearTimeout(slowTimer)
     }
 
     if (!response.ok) {
-      throw new Error(`Permintaan gagal dengan kode ${response.status}`)
+      throw new Error(await parseErrorMessage(response))
     }
 
     const data = await response.json()
+    const replyText = String(data?.reply || '')
+
+    onPhaseChange?.('streaming')
+    await revealTextSmoothly(replyText, onToken, signal)
+
     return {
-      content: data.reply || '',
-      claims: Array.isArray(data.claims) ? data.claims : [],
-      followUps: Array.isArray(data.followUps) ? data.followUps : [],
-      mode: data.mode || mode,
+      content: replyText,
+      claims: Array.isArray(data?.claims) ? data.claims : [],
+      followUps: Array.isArray(data?.followUps) ? data.followUps : [],
+      mode: data?.mode || mode,
     }
   }
 
-  // Simulasi error terencana jika pengguna mengetik "tes error" untuk QA
+  // Mode simulasi offline (jika VITE_USE_MOCK=true)
   if (query.trim().toLowerCase() === 'tes error') {
     onPhaseChange?.('verifying')
     await waitWithAbort(500, signal)
@@ -114,7 +169,34 @@ export async function sendChatMessage({
   }
 }
 
-export async function upgradeVerificationMode(signal) {
-  await waitWithAbort(480, signal)
-  return 'comprehensive'
+export async function upgradeVerificationMode({ query = '', claims = [], signal } = {}) {
+  if (!USE_LIVE_API) {
+    await waitWithAbort(480, signal)
+    return { mode: 'comprehensive', reasoningByClaimId: {} }
+  }
+
+  let response
+  try {
+    response = await fetch(`${API_BASE}/api/chat/deepen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, claims }),
+      signal,
+    })
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err
+    throw new Error(
+      'Tidak dapat terhubung ke server untuk memuat penalaran mendalam.',
+    )
+  }
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response))
+  }
+
+  const data = await response.json()
+  return {
+    mode: data?.mode || 'comprehensive',
+    reasoningByClaimId: data?.reasoningByClaimId || {},
+  }
 }

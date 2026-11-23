@@ -120,6 +120,7 @@ export function MessageItem({
   const isWaiting =
     (message.status === 'reading_files' ||
       message.status === 'verifying' ||
+      message.status === 'waking_server' ||
       message.status === 'streaming') &&
     !message.content
 
@@ -208,6 +209,7 @@ export function MessageItem({
             )}
 
             {message.status !== 'reading_files' &&
+              message.status !== 'waking_server' &&
               message.status !== 'streaming' &&
               message.status !== 'verifying' && (
               <MessageActionBar

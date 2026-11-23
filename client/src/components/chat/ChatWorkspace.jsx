@@ -441,11 +441,45 @@ export function ChatWorkspace() {
   const handleUpgradeMode = useCallback(
     async (messageId) => {
       if (!activeSession || upgradingMessageId) return
+      const targetIdx = activeSession.messages.findIndex(
+        (m) => m.id === messageId,
+      )
+      const targetMessage = activeSession.messages[targetIdx]
+      if (!targetMessage || !Array.isArray(targetMessage.claims)) return
+
+      let precedingQuery = ''
+      for (let i = targetIdx - 1; i >= 0; i -= 1) {
+        if (activeSession.messages[i].role === 'user') {
+          precedingQuery = activeSession.messages[i].content || ''
+          break
+        }
+      }
+
       setUpgradingMessageId(messageId)
       try {
-        const nextMode = await upgradeVerificationMode()
-        updateMessage(activeSession.id, messageId, { mode: nextMode })
+        const result = await upgradeVerificationMode({
+          query: precedingQuery,
+          claims: targetMessage.claims,
+        })
+        const reasoningMap = result?.reasoningByClaimId || {}
+
+        updateMessage(activeSession.id, messageId, (msg) => ({
+          ...msg,
+          mode: result?.mode || 'comprehensive',
+          claims: Array.isArray(msg.claims)
+            ? msg.claims.map((claim) => ({
+                ...claim,
+                reasoning: reasoningMap[claim.id] || claim.reasoning || '',
+              }))
+            : msg.claims,
+        }))
         showToast('Berhasil beralih ke Mode Mendalam', 'success')
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          showToast(
+            err?.message || 'Gagal memuat analisis Mode Mendalam. Coba lagi.',
+          )
+        }
       } finally {
         setUpgradingMessageId(null)
       }

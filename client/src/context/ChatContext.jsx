@@ -43,6 +43,7 @@ function loadStoredSessions() {
         messages: session.messages.map((msg) =>
           msg.status === 'streaming' ||
           msg.status === 'verifying' ||
+          msg.status === 'waking_server' ||
           msg.status === 'reading_files'
             ? { ...msg, status: 'stopped' }
             : msg,

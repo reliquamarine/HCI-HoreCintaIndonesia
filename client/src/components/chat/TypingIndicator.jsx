@@ -1,6 +1,8 @@
 const PHASE_LABELS = {
   reading_files: 'Membaca isi dokumen terlampir...',
   verifying: 'Menelusuri sumber referensi dan memverifikasi klaim...',
+  waking_server:
+    'Menghubungkan ke server dan menganalisis bukti sumber, mohon tunggu sebentar...',
   streaming: 'Menyusun jawaban beserta rujukan...',
 }
 
