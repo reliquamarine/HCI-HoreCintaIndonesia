@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: fritografi-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ZRO_BASE_URL
+        value: https://zro.moonmath.ai/v1
+      - key: ZRO_MODEL
+        value: deepseek-v4.1-flash
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: ZRO_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
