@@ -21,8 +21,8 @@ export function DropzoneOverlay({ visible }) {
         </h2>
         <p className="mt-1.5 text-xs leading-relaxed text-ink-secondary">
           Mendukung PDF, DOCX, TXT, MD, CSV, serta gambar PNG, JPG, dan WEBP
-          (maksimal {MAX_FILES_PER_MESSAGE} file, {MAX_FILE_SIZE_MB} MB per
-          file).
+          (maksimal {MAX_FILES_PER_MESSAGE} file, total {MAX_FILE_SIZE_MB} MB
+          per pesan).
         </p>
       </div>
     </div>

@@ -28,7 +28,7 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 - **Layar Awal Interaktif**: Dilengkapi kartu contoh pertanyaan awal agar pengguna dapat langsung mencoba alur verifikasi klaim.
 - **Rendering Markdown Lengkap**: Mendukung paragraf terstruktur, daftar, tabel responsif, kutipan, dan blok kode dengan tombol salin.
 - **Kontrol Percakapan Penuh**: Tampilan respons halus, tombol **Hentikan**, **Salin**, **Ubah dan Kirim Ulang**, **Jawab Ulang**, penilaian (`👍` / `👎`), serta saran pertanyaan lanjutan.
-- **Upload File dan Dokumen**: Mendukung lampiran dokumen (`PDF`, `DOCX`, `TXT`, `MD`, `CSV`) dan gambar (`PNG`, `JPG`, `WEBP`) hingga 3 file per pesan (maksimal 10 MB per file) melalui tombol lampirkan, *drag and drop*, maupun tempel gambar (`Ctrl+V`) lengkap dengan pratinjau.
+- **Upload File dan Dokumen**: Mendukung lampiran dokumen (`PDF`, `DOCX`, `TXT`, `MD`, `CSV`) dan gambar (`PNG`, `JPG`, `WEBP`) hingga 3 file per pesan (total maksimal 4 MB per pesan) melalui tombol lampirkan, *drag and drop*, maupun tempel gambar (`Ctrl+V`) lengkap dengan pratinjau.
 - **Manajemen Riwayat (Mode Tamu Lokal)**: Multi-sesi percakapan tersimpan otomatis di `localStorage`, dikelompokkan berdasarkan waktu (*Hari Ini*, *Kemarin*, *7 Hari Terakhir*, *Lebih Lama*), dilengkapi pencarian instan (`Ctrl+K`), ubah judul inline, dan dialog konfirmasi hapus.
 
 ### Verifikasi Klaim & Referensi Sumber (KBP)
@@ -50,7 +50,7 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 | **Frontend** | React 19, Vite 8, Tailwind CSS v4 (`@tailwindcss/vite`), Lucide React, `react-markdown`, `remark-gfm`, `clsx`, `tailwind-merge`, Oxlint |
 | **Backend** | Node.js 22+, Express 5, CORS, Helmet, Express Rate Limit, Multer (`memoryStorage`), `pdf-parse`, Mammoth, Dotenv |
 | **AI & Pencarian Web** | Zro API (`deepseek-v4.1-flash`, dukungan teks, penalaran, dan gambar/vision) serta Tavily Search API |
-| **Development Tooling** | Concurrently (menjalankan frontend dan backend bersamaan dari root) |
+| **Deployment** | Vercel All-in-One (Static Frontend + Express Serverless Functions pada 1 domain, gratis tanpa kartu kredit) |
 
 ---
 
@@ -58,9 +58,12 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 
 ```text
 HCI-HoreCintaIndonesia/
+├── api/
+│   └── index.js                    # Entry point Vercel Serverless untuk Express
 ├── client/                         # Aplikasi Frontend (React + Vite + Tailwind v4)
 │   ├── public/
-│   │   └── favicon.svg
+│   │   ├── favicon.svg
+│   │   └── fritografi-icon.svg
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── chat/               # Workspace, MessageList, MessageItem, Composer, Attachments
@@ -76,7 +79,6 @@ HCI-HoreCintaIndonesia/
 │   ├── .env.example
 │   ├── index.html
 │   ├── package.json
-│   ├── vercel.json                 # Konfigurasi SPA rewrite untuk Vercel
 │   └── vite.config.js              # Konfigurasi Tailwind v4 & proxy /api -> localhost:5000
 ├── server/                         # Aplikasi Backend (Express, stateless tanpa database)
 │   ├── config/
@@ -84,7 +86,7 @@ HCI-HoreCintaIndonesia/
 │   ├── middleware/
 │   │   ├── errorHandler.js         # Penanganan error terpusat
 │   │   ├── rateLimit.js            # Rate limiter per IP
-│   │   └── upload.js               # Konfigurasi multer memoryStorage (3 file, 10 MB)
+│   │   └── upload.js               # Konfigurasi multer memoryStorage (3 file, 4 MB)
 │   ├── routes/
 │   │   └── chatRoutes.js           # Endpoint POST /api/chat dan POST /api/chat/deepen
 │   ├── services/
@@ -97,7 +99,7 @@ HCI-HoreCintaIndonesia/
 │   ├── index.js
 │   └── package.json
 ├── package.json                    # Script root (dev, dev:client, dev:server, install:all)
-├── render.yaml                     # Konfigurasi deployment Render
+├── vercel.json                     # Konfigurasi Vercel All-in-One (frontend + /api/*)
 └── README.md
 ```
 
@@ -167,39 +169,22 @@ npm run build --prefix client
 
 ---
 
-## Panduan Deployment Online (Gratis, Tanpa Kartu Kredit)
+## Panduan Deployment Online di Vercel (100% Gratis, Tanpa Kartu Kredit)
 
-### 1. Deploy Backend (`server/`) ke Render
+Frontend (`client/`) dan Backend Express (`server/` melalui `api/index.js`) langsung di-deploy bersama dalam **1 proyek Vercel**:
 
-1. Masuk ke `render.com` menggunakan akun GitHub, lalu pilih **New Web Service** dan hubungkan repository ini (atau gunakan `render.yaml` melalui **New Blueprint Instance**).
-2. Atur konfigurasi layanan:
-   - **Root Directory**: `server`
-   - **Runtime**: `Node`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Instance Type**: `Free`
-3. Tambahkan **Environment Variables**:
-   - `NODE_ENV=production`
-   - `ZRO_BASE_URL=https://zro.moonmath.ai/v1`
-   - `ZRO_MODEL=deepseek-v4.1-flash`
-   - `ZRO_API_KEY=<kunci Zro>`
-   - `TAVILY_API_KEY=<kunci Tavily>`
-   - `ALLOWED_ORIGIN=https://<domain-vercel-kamu>.vercel.app` *(diperbarui setelah frontend selesai di-deploy)*
-4. Setelah deploy selesai, uji `https://<domain-render-kamu>.onrender.com/api/health`.
-
-### 2. Deploy Frontend (`client/`) ke Vercel
-
-1. Masuk ke `vercel.com` menggunakan akun GitHub, pilih **Add New Project**, lalu pilih repository ini.
-2. Atur konfigurasi proyek:
-   - **Root Directory**: `client`
-   - **Framework Preset**: `Vite`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-3. Tambahkan **Environment Variable**:
-   - `VITE_API_URL=https://<domain-render-kamu>.onrender.com` *(tanpa garis miring di akhir)*
-4. Klik **Deploy**, lalu salin URL Vercel yang dihasilkan ke variabel `ALLOWED_ORIGIN` pada dashboard Render dan lakukan redeploy singkat di Render.
-
-*(Catatan: Server gratis Render akan tidur setelah 15 menit tanpa aktivitas. Sebelum presentasi, cukup buka URL `/api/health` sekitar 1 menit sebelumnya agar server langsung siap.)*
+1. Pastikan seluruh commit terbaru sudah di-push ke GitHub (`git push origin main`).
+2. Buka `https://vercel.com` dan login menggunakan akun GitHub.
+3. Klik **Add New** → **Project** → klik **Import** pada repository `HCI-HoreCintaIndonesia`.
+4. Biarkan **Root Directory** tetap di root repository (`.` / kosong). Vercel otomatis membaca konfigurasi build, output `client/dist`, dan routing `/api/*` dari `vercel.json`.
+5. Buka bagian **Environment Variables**, lalu tambahkan:
+   - `ZRO_API_KEY` = *(API key Zro kamu)*
+   - `TAVILY_API_KEY` = *(API key Tavily kamu)*
+   - `ZRO_BASE_URL` = `https://zro.moonmath.ai/v1`
+   - `ZRO_MODEL` = `deepseek-v4.1-flash`
+   - `NODE_ENV` = `production`
+6. Klik **Deploy** dan tunggu proses build selesai (~1 menit).
+7. Uji alamat `https://<domain-kamu>.vercel.app/api/health` untuk memastikan backend merespons `"status": "ok"`, lalu buka `https://<domain-kamu>.vercel.app` untuk memakai **FritoGrafi**!
 
 ---
 
@@ -210,6 +195,6 @@ npm run build --prefix client
 - [x] Implementasi panel **Ringkasan Klaim** (Master-Detail, sitasi inline, filter sikap, modal layar penuh)
 - [x] Implementasi upload file dan dokumen (tombol lampirkan, *drag and drop*, tempel gambar, pratinjau, dan sumber `Dokumen Pengguna`)
 - [x] Implementasi backend Express dengan Zro (`deepseek-v4.1-flash`), Tavily Search API, parser PDF/DOCX/TXT/gambar, serta endpoint `/api/chat` dan `/api/chat/deepen`
-- [x] Konfigurasi kesiapan deployment online (Vercel dan Render)
-- [ ] Deployment online ke Render & Vercel menggunakan akun tim
+- [x] Konfigurasi Vercel All-in-One (`vercel.json` dan `api/index.js`) untuk deployment 1 klik gratis tanpa kartu kredit
+- [ ] Deployment online ke Vercel menggunakan akun tim
 - [ ] Evaluasi HCI / *usability testing* (opsional sesuai kebutuhan laporan mata kuliah)

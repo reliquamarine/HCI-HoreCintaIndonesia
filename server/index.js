@@ -17,27 +17,53 @@ app.use(
 )
 
 app.use(
-  cors({
-    origin(origin, callback) {
-      // Izinkan permintaan tanpa header Origin (health check, curl, server-to-server)
-      if (!origin) {
-        callback(null, true)
-        return
+  cors((req, callback) => {
+    const origin = req.headers.origin
+    if (!origin) {
+      callback(null, {
+        origin: true,
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+      })
+      return
+    }
+
+    const normalized = origin.replace(/\/$/, '')
+    let isSameHost = false
+    try {
+      const originHost = new URL(normalized).host
+      const requestHost = req.headers['x-forwarded-host'] || req.headers.host
+      if (originHost && requestHost && originHost === requestHost) {
+        isSameHost = true
       }
-      const normalized = origin.replace(/\/$/, '')
-      if (
-        config.allowedOrigins.includes('*') ||
-        config.allowedOrigins.includes(normalized)
-      ) {
-        callback(null, true)
-        return
-      }
-      const err = new Error('Origin tidak diizinkan oleh kebijakan CORS.')
-      err.statusCode = 403
-      callback(err)
-    },
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    } catch {
+      // Abaikan URL origin tidak valid
+    }
+
+    const vercelUrls = [
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+      process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : '',
+    ].filter(Boolean)
+
+    if (
+      isSameHost ||
+      config.allowedOrigins.includes('*') ||
+      config.allowedOrigins.includes(normalized) ||
+      vercelUrls.includes(normalized)
+    ) {
+      callback(null, {
+        origin: true,
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+      })
+      return
+    }
+
+    const err = new Error('Origin tidak diizinkan oleh kebijakan CORS.')
+    err.statusCode = 403
+    callback(err)
   }),
 )
 

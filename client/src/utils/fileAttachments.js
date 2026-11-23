@@ -1,6 +1,7 @@
 export const MAX_FILES_PER_MESSAGE = 3
-export const MAX_FILE_SIZE_MB = 10
+export const MAX_FILE_SIZE_MB = 4
 export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+export const MAX_TOTAL_UPLOAD_BYTES = MAX_FILE_SIZE_BYTES
 
 export const ALLOWED_DOCUMENT_EXTENSIONS = ['pdf', 'docx', 'txt', 'md', 'csv']
 export const ALLOWED_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp']
@@ -65,6 +66,10 @@ export function validateIncomingFiles(fileList, existingItems = []) {
   const errors = []
 
   let remainingSlots = Math.max(0, MAX_FILES_PER_MESSAGE - existingItems.length)
+  let currentTotalBytes = existingItems.reduce(
+    (sum, item) => sum + (Number(item.size) || 0),
+    0,
+  )
 
   for (const file of incoming) {
     const ext = getFileExtension(file.name)
@@ -107,8 +112,16 @@ export function validateIncomingFiles(fileList, existingItems = []) {
       break
     }
 
+    if (currentTotalBytes + file.size > MAX_TOTAL_UPLOAD_BYTES) {
+      errors.push(
+        `Total ukuran lampiran dalam satu pesan maksimal ${MAX_FILE_SIZE_MB} MB.`,
+      )
+      continue
+    }
+
     accepted.push(file)
     remainingSlots -= 1
+    currentTotalBytes += file.size
   }
 
   return { accepted, errors }
