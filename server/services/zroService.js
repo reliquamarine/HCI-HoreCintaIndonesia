@@ -8,9 +8,11 @@ const {
 
 async function callZroChat({
   messages,
-  maxTokens = 4096,
+  maxTokens = 3072,
   temperature = 0.2,
-  timeoutMs = 55000,
+  reasoningEffort = 'low',
+  jsonMode = false,
+  timeoutMs = 85000,
   signal,
 }) {
   if (!config.zroApiKey) {
@@ -24,6 +26,18 @@ async function callZroChat({
     ? AbortSignal.any([signal, timeoutSignal])
     : timeoutSignal
 
+  const body = {
+    model: config.zroModel,
+    messages,
+    max_tokens: maxTokens,
+    temperature,
+    reasoning_effort: reasoningEffort,
+  }
+
+  if (jsonMode) {
+    body.response_format = { type: 'json_object' }
+  }
+
   let response
   try {
     response = await fetch(`${config.zroBaseUrl}/chat/completions`, {
@@ -32,12 +46,7 @@ async function callZroChat({
         Authorization: `Bearer ${config.zroApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: config.zroModel,
-        messages,
-        max_tokens: maxTokens,
-        temperature,
-      }),
+      body: JSON.stringify(body),
       signal: combinedSignal,
     })
   } catch (err) {
@@ -87,7 +96,7 @@ function formatHistoryContext(history = []) {
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
     .map((m) => {
       const speaker = m.role === 'user' ? 'Pengguna' : 'FritoGrafi'
-      return `${speaker}: ${String(m.content).slice(0, 500)}`
+      return `${speaker}: ${String(m.content).slice(0, 420)}`
     })
     .join('\n')
 }
@@ -111,7 +120,7 @@ async function handleSmallTalk({ query, history, signal }) {
     {
       role: 'system',
       content:
-        'Kamu adalah FritoGrafi, asisten percakapan cerdas berbahasa Indonesia yang membantu menjawab pertanyaan dan memverifikasi klaim beserta sumber rujukan yang jelas. Jawab sapaan pengguna secara singkat, hangat, dan natural dalam Bahasa Indonesia. Jangan gunakan simbol titik tengah atau em dash.',
+        'Kamu adalah FritoGrafi, asisten percakapan berbahasa Indonesia untuk menjawab pertanyaan dan memverifikasi klaim beserta sumber rujukan. Jawab sapaan pengguna secara singkat, ramah, dan natural dalam Bahasa Indonesia. Jangan pakai simbol titik tengah atau em dash.',
     },
     {
       role: 'user',
@@ -123,9 +132,10 @@ async function handleSmallTalk({ query, history, signal }) {
 
   const result = await callZroChat({
     messages,
-    maxTokens: 1024,
-    temperature: 0.5,
-    timeoutMs: 25000,
+    maxTokens: 512,
+    temperature: 0.4,
+    reasoningEffort: 'low',
+    timeoutMs: 30000,
     signal,
   })
 
@@ -153,27 +163,27 @@ async function generateSearchQueries({
   const docSummary = documents
     .map(
       (doc) =>
-        `[${doc.sourceId}] ${doc.fileName}:\n${String(doc.text || '').slice(0, 2200)}`,
+        `[${doc.sourceId}] ${doc.fileName}:\n${String(doc.text || '').slice(0, 1800)}`,
     )
     .join('\n\n')
 
   const promptParts = [
-    'Tugasmu: buat 1 sampai 2 kueri pencarian web yang singkat, faktual, dan spesifik (maksimal 12 kata per kueri) untuk memverifikasi pertanyaan atau isi dokumen/gambar pengguna.',
-    'Kembalikan HANYA JSON valid dengan format: {"queries": ["kueri 1", "kueri 2"]}. Jangan menulis penjelasan lain.',
+    'Buat 1 sampai 2 kueri pencarian web singkat dan faktual (maksimal 12 kata) untuk memverifikasi pertanyaan atau isi dokumen/gambar pengguna.',
+    'Jawab HANYA JSON: {"queries": ["kueri 1"]}.',
   ]
 
   if (historyText) {
-    promptParts.push(`Riwayat percakapan sebelumnya:\n${historyText}`)
+    promptParts.push(`Riwayat sebelumnya:\n${historyText}`)
   }
   if (docSummary) {
     promptParts.push(`Cuplikan dokumen pengguna:\n${docSummary}`)
   }
   if (images.length > 0) {
     promptParts.push(
-      `Pengguna juga melampirkan ${images.length} gambar. Baca klaim/teks penting di gambar tersebut untuk menyusun kueri verifikasi.`,
+      `Pengguna melampirkan ${images.length} gambar. Baca klaim utama di gambar untuk menyusun kueri.`,
     )
   }
-  promptParts.push(`Pertanyaan pengguna saat ini: ${query}`)
+  promptParts.push(`Pertanyaan pengguna: ${query}`)
 
   try {
     const result = await callZroChat({
@@ -181,16 +191,18 @@ async function generateSearchQueries({
         {
           role: 'system',
           content:
-            'Kamu adalah generator kueri pencarian web untuk verifikasi fakta. Jawab hanya dalam format JSON {"queries": [...]}.',
+            'Kamu adalah generator kueri pencarian verifikasi fakta. Kembalikan hanya JSON {"queries": [...]}.',
         },
         {
           role: 'user',
           content: buildMultimodalUserContent(promptParts.join('\n\n'), images),
         },
       ],
-      maxTokens: 1024,
+      maxTokens: 512,
       temperature: 0.1,
-      timeoutMs: 25000,
+      reasoningEffort: 'low',
+      jsonMode: true,
+      timeoutMs: 30000,
       signal,
     })
 
@@ -206,7 +218,6 @@ async function generateSearchQueries({
     if (err?.name === 'AbortError' && signal?.aborted) {
       throw err
     }
-    // Fallback ke pertanyaan asli bila ekstraksi kueri gagal
   }
 
   return [query]
@@ -217,11 +228,11 @@ function formatSourcePool(webSources = [], documents = [], images = []) {
 
   if (documents.length > 0) {
     sections.push(
-      'SUMBER DOKUMEN PENGGUNA:\n' +
+      'DOKUMEN PENGGUNA:\n' +
         documents
           .map(
             (doc) =>
-              `[${doc.sourceId}] File: ${doc.fileName} (${doc.locationLabel})\nIsi:\n${doc.text || '(Dokumen tidak berisi teks terbaca)'}`,
+              `[${doc.sourceId}] ${doc.fileName} (${doc.locationLabel}):\n${doc.text || '(Kosong)'}`,
           )
           .join('\n\n'),
     )
@@ -229,23 +240,20 @@ function formatSourcePool(webSources = [], documents = [], images = []) {
 
   if (images.length > 0) {
     sections.push(
-      'SUMBER GAMBAR PENGGUNA:\n' +
+      'GAMBAR PENGGUNA:\n' +
         images
-          .map(
-            (img) =>
-              `[${img.sourceId}] Gambar terlampir: ${img.fileName} (lihat gambar yang disertakan pada pesan ini)`,
-          )
+          .map((img) => `[${img.sourceId}] Gambar: ${img.fileName}`)
           .join('\n'),
     )
   }
 
   if (webSources.length > 0) {
     sections.push(
-      'SUMBER PENCARIAN WEB NYATA (TAVILY):\n' +
+      'SUMBER WEB NYATA:\n' +
         webSources
           .map(
             (ws) =>
-              `[${ws.sourceId}] Judul: ${ws.title}\nURL: ${ws.url}\nTipe: ${ws.sourceType}\nSkor Relevansi Awal: ${ws.score.toFixed(2)}\nKutipan: ${ws.snippet}`,
+              `[${ws.sourceId}] ${ws.title} (${ws.sourceType}, skor ${ws.score.toFixed(2)})\nURL: ${ws.url}\nKutipan: ${ws.snippet}`,
           )
           .join('\n\n'),
     )
@@ -268,63 +276,26 @@ async function synthesizeVerifiedAnswer({
   const sourcePool = formatSourcePool(webSources, documents, images)
 
   const systemPrompt = [
-    'Kamu adalah FritoGrafi, asisten percakapan cerdas berbahasa Indonesia yang memverifikasi setiap klaim faktual secara transparan berdasarkan sumber nyata.',
-    'ATURAN WAJIB:',
-    '1. Gunakan Bahasa Indonesia yang natural, akurat, dan mudah dibaca di seluruh teks jawaban, pernyataan klaim, ringkasan, penalaran, dan pertanyaan lanjutan.',
-    '2. JANGAN gunakan simbol titik tengah atau tanda em dash sebagai pemisah teks.',
-    '3. Dalam field "reply", tulis jawaban informatif (boleh pakai Markdown seperti bold atau poin) dan sisipkan penanda sitasi inline [1], [2], dst. tepat di akhir kalimat/klaim yang sesuai dengan nomor klaim pada array "claims".',
-    '4. Pecah pernyataan faktual utama dari jawabanmu menjadi 1 sampai 4 objek pada array "claims".',
-    '5. ANTI HALUSINASI: Setiap item pada "evidence" WAJIB memakai "sourceId" yang benar-benar ada di daftar sumber yang diberikan (misalnya "W1", "W2", atau "D1"). DILARANG mengarang URL atau sumber baru.',
-    '6. Nilai enum yang diizinkan:',
-    '   - verdict: "SUPPORTED" (didukung kuat), "PARTIAL" (sebagian didukung atau bersyarat), "CONTRADICTED" (bertentangan dengan bukti), atau "UNVERIFIED" (tidak cukup bukti).',
-    '   - stance: "SUPPORTS", "NEUTRAL", atau "CONTRADICTS".',
-    '   - confidence, credibility, relevance: angka desimal antara 0.00 sampai 1.00.',
+    'Kamu adalah FritoGrafi, asisten verifikasi fakta berbahasa Indonesia.',
+    'Aturan:',
+    '1. Seluruh output wajib Bahasa Indonesia natural. Jangan gunakan titik tengah atau em dash. Jangan tulis kode internal seperti W1 atau D1 pada teks reply, summary, atau reasoning; sebut nama penerbit atau nama file secara natural.',
+    '2. Tulis "reply" dalam Markdown ringkas dan sisipkan penanda sitasi inline [1], [2] sesuai urutan array "claims".',
+    '3. Buat 1 sampai 3 objek pada "claims". Setiap item "evidence" WAJIB merujuk "sourceId" valid dari daftar sumber ("W1", "W2", atau "D1"). Jika ada dokumen/gambar pengguna (D1, dst.), sertakan juga sebagai salah satu evidence pada klaim yang membahas isinya. Dilarang mengarang URL.',
+    '4. Enum valid: verdict ("SUPPORTED"|"PARTIAL"|"CONTRADICTED"|"UNVERIFIED"), stance ("SUPPORTS"|"NEUTRAL"|"CONTRADICTS"), skor 0.00 sampai 1.00.',
     isComprehensive
-      ? '7. Mode aktif adalah MENDALAM: isi field "reasoning" pada setiap klaim dengan analisis penalaran mendalam 2 sampai 4 poin bernomor (konsistensi antar sumber, kualitas/kredibilitas bukti, serta keterbatasan atau konteks penting).'
-      : '7. Mode aktif adalah DASAR: isi field "reasoning" dengan string kosong "" agar respons ringkas dan cepat.',
-    '8. Kembalikan HANYA JSON valid (tanpa teks pembuka atau penutup di luar JSON) dengan struktur persis berikut:',
-    JSON.stringify(
-      {
-        reply: 'Teks jawaban Markdown dengan penanda [1] dan [2].',
-        claims: [
-          {
-            statement: 'Pernyataan klaim faktual yang lengkap dan jelas.',
-            verdict: 'SUPPORTED',
-            confidence: 0.85,
-            summary: 'Ringkasan singkat seberapa kuat bukti mendukung klaim ini.',
-            reasoning: isComprehensive
-              ? '1) Langkah analisis pertama. 2) Perbandingan antar sumber. 3) Keterbatasan konteks.'
-              : '',
-            evidence: [
-              {
-                sourceId: 'W1',
-                stance: 'SUPPORTS',
-                credibility: 0.85,
-                relevance: 0.9,
-                snippet: 'Kutipan ringkas relevan dari sumber dalam Bahasa Indonesia atau bahasa asli sumber.',
-                locationLabel: 'Opsional khusus D1 seperti Halaman 1',
-              },
-            ],
-          },
-        ],
-        followUps: [
-          'Pertanyaan lanjutan relevan 1?',
-          'Pertanyaan lanjutan relevan 2?',
-        ],
-      },
-      null,
-      2,
-    ),
+      ? '5. Mode MENDALAM: isi "reasoning" tiap klaim dengan 2 sampai 4 poin bernomor singkat tentang kekuatan bukti, kredibilitas, dan batasan konteks.'
+      : '5. Mode DASAR: isi "reasoning" dengan string kosong "".',
+    '6. Kembalikan HANYA JSON sesuai skema: {"reply":"...","claims":[{"statement":"...","verdict":"SUPPORTED","confidence":0.85,"summary":"...","reasoning":"","evidence":[{"sourceId":"W1","stance":"SUPPORTS","credibility":0.85,"relevance":0.9,"snippet":"...","locationLabel":""}]}],"followUps":["...","..."]}.',
   ].join('\n')
 
   const userParts = []
   if (historyText) {
-    userParts.push(`Riwayat percakapan sebelumnya:\n${historyText}`)
+    userParts.push(`Riwayat:\n${historyText}`)
   }
   userParts.push(`Pertanyaan pengguna:\n${query}`)
   userParts.push(
     sourcePool ||
-      'Tidak ada hasil pencarian web yang tersedia. Tandai klaim faktual sebagai UNVERIFIED secara jujur jika tidak dapat diverifikasi.',
+      'Tidak ada sumber web ditemukan. Tandai klaim faktual sebagai UNVERIFIED bila tidak cukup bukti.',
   )
 
   const result = await callZroChat({
@@ -335,9 +306,11 @@ async function synthesizeVerifiedAnswer({
         content: buildMultimodalUserContent(userParts.join('\n\n'), images),
       },
     ],
-    maxTokens: isComprehensive ? 6144 : 4096,
+    maxTokens: isComprehensive ? 4096 : 2800,
     temperature: 0.2,
-    timeoutMs: 55000,
+    reasoningEffort: isComprehensive ? 'medium' : 'low',
+    jsonMode: true,
+    timeoutMs: 85000,
     signal,
   })
 
@@ -373,10 +346,8 @@ async function deepenClaimsReasoning({ query = '', claims = [], signal }) {
 
   const systemPrompt = [
     'Kamu adalah analis verifikasi fakta FritoGrafi.',
-    'Tugasmu: susun penalaran mendalam langkah demi langkah dalam Bahasa Indonesia untuk setiap klaim berdasarkan bukti yang sudah ada.',
-    'Jangan gunakan simbol titik tengah atau em dash.',
-    'Setiap penalaran terdiri dari 2 sampai 4 poin bernomor singkat yang membahas kekuatan bukti, kredibilitas sumber, serta batasan atau nuansa klaim.',
-    'Kembalikan HANYA JSON valid dengan format: {"reasoningByClaimId": {"claim_1": "1) ... 2) ..."}}.',
+    'Susun penalaran mendalam 2 sampai 4 poin bernomor dalam Bahasa Indonesia untuk setiap klaim berdasarkan bukti yang tersedia. Jangan pakai titik tengah, em dash, atau kode internal seperti W1/D1.',
+    'Kembalikan HANYA JSON: {"reasoningByClaimId": {"claim_1": "1) ... 2) ..."}}.',
   ].join('\n')
 
   const result = await callZroChat({
@@ -384,12 +355,14 @@ async function deepenClaimsReasoning({ query = '', claims = [], signal }) {
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: `Konteks pertanyaan: ${query}\n\nDaftar klaim dan bukti:\n${JSON.stringify(compactClaims, null, 2)}`,
+        content: `Pertanyaan: ${query}\n\nKlaim dan bukti:\n${JSON.stringify(compactClaims)}`,
       },
     ],
-    maxTokens: 4096,
+    maxTokens: 2800,
     temperature: 0.2,
-    timeoutMs: 45000,
+    reasoningEffort: 'low',
+    jsonMode: true,
+    timeoutMs: 60000,
     signal,
   })
 
