@@ -1,8 +1,11 @@
+const PHASE_LABELS = {
+  reading_files: 'Membaca isi dokumen terlampir...',
+  verifying: 'Menelusuri sumber referensi dan memverifikasi klaim...',
+  streaming: 'Menyusun jawaban beserta rujukan...',
+}
+
 export function TypingIndicator({ phase = 'verifying' }) {
-  const label =
-    phase === 'verifying'
-      ? 'Menelusuri sumber referensi dan memverifikasi klaim...'
-      : 'Menyusun jawaban beserta rujukan...'
+  const label = PHASE_LABELS[phase] || PHASE_LABELS.verifying
 
   return (
     <div

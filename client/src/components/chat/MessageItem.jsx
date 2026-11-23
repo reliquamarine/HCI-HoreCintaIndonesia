@@ -4,10 +4,12 @@ import { formatMessageTime } from '../../utils/dateGroups.js'
 import { MODE_META } from '../../utils/verificationLabels.js'
 import { BrandLogo } from '../ui/BrandLogo.jsx'
 import { MessageActionBar } from './MessageActionBar.jsx'
+import { MessageAttachments } from './MessageAttachments.jsx'
 import { TypingIndicator } from './TypingIndicator.jsx'
 
 export function MessageItem({
   message,
+  runtimeAttachments,
   isGenerating,
   onCopy,
   onEditUserMessage,
@@ -82,6 +84,10 @@ export function MessageItem({
         ) : (
           <div className="max-w-[90%] sm:max-w-[78%]">
             <div className="rounded-2xl rounded-tr-md border border-user-bubble-border bg-user-bubble px-4 py-3 text-sm leading-relaxed text-ink sm:text-[15px]">
+              <MessageAttachments
+                attachments={message.attachments}
+                runtimeAttachments={runtimeAttachments}
+              />
               <p className="whitespace-pre-wrap wrap-break-word">{message.content}</p>
             </div>
             <div className="mt-1 flex items-center justify-end gap-2 px-1">
@@ -112,7 +118,9 @@ export function MessageItem({
   const modeLabel = (MODE_META[message.mode] || MODE_META.basic).badgeLabel
   const claimsCount = Array.isArray(message.claims) ? message.claims.length : 0
   const isWaiting =
-    (message.status === 'verifying' || message.status === 'streaming') &&
+    (message.status === 'reading_files' ||
+      message.status === 'verifying' ||
+      message.status === 'streaming') &&
     !message.content
 
   return (
@@ -199,7 +207,9 @@ export function MessageItem({
               </div>
             )}
 
-            {message.status !== 'streaming' && message.status !== 'verifying' && (
+            {message.status !== 'reading_files' &&
+              message.status !== 'streaming' &&
+              message.status !== 'verifying' && (
               <MessageActionBar
                 role="assistant"
                 content={message.content}

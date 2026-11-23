@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { toSerializableAttachment } from '../utils/fileAttachments.js'
 import { ChatContext } from './chatContextValue.js'
 
 const SESSIONS_STORAGE_KEY = 'fritografi_sessions_v1'
@@ -40,7 +41,9 @@ function loadStoredSessions() {
       .map((session) => ({
         ...session,
         messages: session.messages.map((msg) =>
-          msg.status === 'streaming' || msg.status === 'verifying'
+          msg.status === 'streaming' ||
+          msg.status === 'verifying' ||
+          msg.status === 'reading_files'
             ? { ...msg, status: 'stopped' }
             : msg,
         ),
@@ -163,9 +166,13 @@ function chatReducer(state, action) {
           if (session.id !== sessionId) return session
           const isFirstUserMsg =
             session.messages.length === 0 && message.role === 'user'
+          const titleSource =
+            message.isDefaultPrompt && message.attachments?.length > 0
+              ? `Analisis ${message.attachments[0].name}`
+              : message.content
           const nextTitle =
             isFirstUserMsg && session.title === 'Percakapan Baru'
-              ? deriveTitleFromText(message.content)
+              ? deriveTitleFromText(titleSource)
               : session.title
           return {
             ...session,
@@ -231,7 +238,18 @@ export function ChatProvider({ children }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(state.sessions))
+      const sanitized = state.sessions.map((session) => ({
+        ...session,
+        messages: session.messages.map((msg) =>
+          Array.isArray(msg.attachments) && msg.attachments.length > 0
+            ? {
+                ...msg,
+                attachments: msg.attachments.map(toSerializableAttachment),
+              }
+            : msg,
+        ),
+      }))
+      localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify(sanitized))
     } catch {
       // Ignore storage quota errors
     }

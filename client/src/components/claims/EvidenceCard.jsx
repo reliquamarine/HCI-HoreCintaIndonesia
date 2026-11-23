@@ -1,4 +1,4 @@
-import { ExternalLink, Globe } from 'lucide-react'
+import { ExternalLink, FileText, Globe } from 'lucide-react'
 import { extractDomain } from '../../utils/dateGroups.js'
 import {
   formatScore,
@@ -7,14 +7,16 @@ import {
 import { StanceBadge } from './VerdictBadge.jsx'
 
 export function EvidenceCard({ evidence }) {
+  const isUserDocument = evidence.sourceType === 'USER_DOCUMENT'
   const domain = extractDomain(evidence.url)
+  const SourceIcon = isUserDocument ? FileText : Globe
 
   return (
     <article className="min-w-0 overflow-hidden rounded-xl border border-line bg-surface p-3.5 transition-colors hover:border-line-strong">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-muted px-2 py-0.5 text-[11px] font-semibold text-ink-secondary">
-            <Globe className="h-3 w-3 text-ink-muted" aria-hidden="true" />
+            <SourceIcon className="h-3 w-3 text-ink-muted" aria-hidden="true" />
             <span>{getSourceTypeLabel(evidence.sourceType)}</span>
           </span>
           <StanceBadge stance={evidence.stance} />
@@ -34,7 +36,7 @@ export function EvidenceCard({ evidence }) {
         {evidence.title}
       </h5>
 
-      {evidence.url && (
+      {evidence.url ? (
         <a
           href={evidence.url}
           target="_blank"
@@ -44,7 +46,21 @@ export function EvidenceCard({ evidence }) {
           <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <span className="truncate">{evidence.url}</span>
         </a>
-      )}
+      ) : isUserDocument && (evidence.fileName || evidence.locationLabel) ? (
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-medium text-ink-secondary">
+          {evidence.fileName && (
+            <span className="inline-flex items-center gap-1 text-brand">
+              <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{evidence.fileName}</span>
+            </span>
+          )}
+          {evidence.locationLabel && (
+            <span className="rounded-md bg-surface-muted px-2 py-0.5 text-[11px] text-ink-muted">
+              {evidence.locationLabel}
+            </span>
+          )}
+        </div>
+      ) : null}
 
       {evidence.snippet && (
         <div className="mt-2.5 rounded-xl bg-surface-muted px-3 py-2.5">
@@ -52,9 +68,13 @@ export function EvidenceCard({ evidence }) {
             <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
               Kutipan Sumber
             </span>
-            {domain && (
+            {domain ? (
               <span className="text-[11px] text-ink-muted">{domain}</span>
-            )}
+            ) : isUserDocument && evidence.fileName ? (
+              <span className="truncate text-[11px] text-ink-muted">
+                {evidence.fileName}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 text-xs leading-relaxed text-ink-secondary">
             {evidence.snippet}

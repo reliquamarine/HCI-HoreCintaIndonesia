@@ -5,6 +5,7 @@ import { MessageItem } from './MessageItem.jsx'
 
 export function MessageList({
   messages,
+  runtimeAttachments,
   isGenerating,
   onCopy,
   onEditUserMessage,
@@ -43,6 +44,7 @@ export function MessageList({
             <MessageItem
               key={message.id}
               message={message}
+              runtimeAttachments={runtimeAttachments}
               isGenerating={isGenerating}
               onCopy={onCopy}
               onEditUserMessage={onEditUserMessage}

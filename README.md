@@ -28,6 +28,7 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 - **Layar Awal Interaktif**: Dilengkapi kartu contoh pertanyaan awal agar pengguna dapat langsung mencoba alur verifikasi klaim.
 - **Rendering Markdown Lengkap**: Mendukung paragraf terstruktur, daftar, tabel responsif, kutipan, dan blok kode dengan tombol salin.
 - **Kontrol Percakapan Penuh**: Streaming teks bertahap, tombol **Hentikan**, **Salin**, **Ubah dan Kirim Ulang**, **Jawab Ulang**, penilaian (`👍` / `👎`), serta saran pertanyaan lanjutan.
+- **Upload File dan Dokumen**: Mendukung lampiran dokumen (`PDF`, `DOCX`, `TXT`, `MD`, `CSV`) dan gambar (`PNG`, `JPG`, `WEBP`) hingga 3 file per pesan (maksimal 10 MB per file) melalui tombol lampirkan, *drag and drop*, maupun tempel gambar (`Ctrl+V`) lengkap dengan pratinjau.
 - **Manajemen Riwayat (Mode Tamu Lokal)**: Multi-sesi percakapan tersimpan otomatis di `localStorage`, dikelompokkan berdasarkan waktu (*Hari Ini*, *Kemarin*, *7 Hari Terakhir*, *Lebih Lama*), dilengkapi pencarian instan (`Ctrl+K`), ubah judul inline, dan dialog konfirmasi hapus.
 
 ### Verifikasi Klaim & Referensi Sumber (KBP)
@@ -60,7 +61,7 @@ HCI-HoreCintaIndonesia/
 │   │   └── favicon.svg
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── chat/               # Workspace, MessageList, MessageItem, Composer, Markdown
+│   │   │   ├── chat/               # Workspace, MessageList, MessageItem, Composer, Attachments
 │   │   │   ├── claims/             # ClaimsOverview, ClaimListItem, ClaimDetailPanel, EvidenceCard
 │   │   │   ├── layout/             # AppShell, TopHeader
 │   │   │   ├── sidebar/            # Sidebar, SessionItem, SessionSearch
@@ -69,7 +70,7 @@ HCI-HoreCintaIndonesia/
 │   │   ├── data/                   # Starter prompts & dataset simulasi verifikasi klaim
 │   │   ├── hooks/                  # useChat, useTheme, useAutoScroll, useKeyboardShortcuts
 │   │   ├── services/               # chatService.js (abstraksi Mock -> API Express)
-│   │   └── utils/                  # cn, dateGroups, verificationLabels
+│   │   └── utils/                  # cn, dateGroups, fileAttachments, verificationLabels
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js              # Konfigurasi Tailwind v4 & proxy /api -> localhost:5000
@@ -134,6 +135,8 @@ Ketika endpoint backend LLM selesai dibangun:
 
 ### Format Request (`POST /api/chat`)
 
+Untuk pesan teks saja, frontend mengirim JSON (`application/json`):
+
 ```json
 {
   "message": "Benarkah jalan kaki 10.000 langkah per hari menurunkan risiko demensia?",
@@ -144,6 +147,8 @@ Ketika endpoint backend LLM selesai dibangun:
   "mode": "basic"
 }
 ```
+
+Jika pengguna melampirkan file, frontend otomatis mengirim `multipart/form-data` dengan field `message`, `sessionId`, `mode`, `history` (string JSON), dan `files` (maksimal 3 file, 10 MB per file).
 
 ### Format Response
 
@@ -187,7 +192,7 @@ Nilai enum yang didukung antarmuka:
 
 - `verdict`: `"SUPPORTED"`, `"PARTIAL"`, `"CONTRADICTED"`, `"UNVERIFIED"`
 - `stance`: `"SUPPORTS"`, `"NEUTRAL"`, `"CONTRADICTS"`
-- `sourceType`: `"WEB_SEARCH"`, `"JOURNAL"`, `"OFFICIAL"`, `"ENCYCLOPEDIA"`
+- `sourceType`: `"WEB_SEARCH"`, `"JOURNAL"`, `"OFFICIAL"`, `"ENCYCLOPEDIA"`, `"USER_DOCUMENT"`
 - `mode`: `"basic"`, `"comprehensive"`
 
 ---
@@ -197,5 +202,6 @@ Nilai enum yang didukung antarmuka:
 - [x] Setup struktur monorepo (`client`, `server`, dan script root)
 - [x] Desain dan implementasi lengkap UI Frontend **FritoGrafi** (tema Modern Nusantara, mode Terang/Gelap, responsif, aksesibilitas)
 - [x] Implementasi panel **Ringkasan Klaim** beserta mesin simulasi verifikasi frontend
+- [x] Implementasi upload file dan dokumen (tombol lampirkan, *drag and drop*, tempel gambar, pratinjau, dan sumber `Dokumen Pengguna`)
 - [ ] Integrasi backend Express dengan layanan LLM + pencarian sumber web (*grounding*)
 - [ ] Pengujian kegunaan (*usability testing*) dan evaluasi HCI

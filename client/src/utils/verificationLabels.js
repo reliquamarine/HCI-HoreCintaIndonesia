@@ -59,6 +59,7 @@ export const SOURCE_TYPE_LABELS = {
   JOURNAL: 'Jurnal Ilmiah',
   OFFICIAL: 'Dokumen Resmi',
   ENCYCLOPEDIA: 'Ensiklopedia',
+  USER_DOCUMENT: 'Dokumen Pengguna',
 }
 
 export const MODE_META = {

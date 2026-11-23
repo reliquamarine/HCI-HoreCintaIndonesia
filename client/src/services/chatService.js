@@ -26,18 +26,42 @@ export async function sendChatMessage({
   sessionId,
   history,
   mode = 'basic',
+  attachments = [],
+  files = [],
   signal,
   onPhaseChange,
   onToken,
 }) {
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0
+  const hasFiles = Array.isArray(files) && files.length > 0
+
   if (USE_LIVE_API) {
-    onPhaseChange?.('verifying')
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: query, sessionId, history, mode }),
-      signal,
-    })
+    onPhaseChange?.(hasFiles ? 'reading_files' : 'verifying')
+
+    let response
+    if (hasFiles) {
+      const formData = new FormData()
+      formData.append('message', query)
+      formData.append('sessionId', sessionId)
+      formData.append('mode', mode)
+      formData.append('history', JSON.stringify(history || []))
+      for (const file of files) {
+        formData.append('files', file)
+      }
+
+      response = await fetch('/api/chat', {
+        method: 'POST',
+        body: formData,
+        signal,
+      })
+    } else {
+      response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: query, sessionId, history, mode }),
+        signal,
+      })
+    }
 
     if (!response.ok) {
       throw new Error(`Permintaan gagal dengan kode ${response.status}`)
@@ -61,10 +85,15 @@ export async function sendChatMessage({
     )
   }
 
+  if (hasAttachments) {
+    onPhaseChange?.('reading_files')
+    await waitWithAbort(550, signal)
+  }
+
   onPhaseChange?.('verifying')
   await waitWithAbort(mode === 'comprehensive' ? 850 : 600, signal)
 
-  const scenario = matchMockScenario(query)
+  const scenario = matchMockScenario(query, attachments)
   const tokens = scenario.reply.split(/(\s+)/)
   let accumulated = ''
 

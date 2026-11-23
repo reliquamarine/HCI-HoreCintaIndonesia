@@ -521,7 +521,101 @@ export function buildFallbackScenario(query) {
   }
 }
 
-export function matchMockScenario(query) {
+export function buildAttachmentScenario(query, attachments = []) {
+  const primary = attachments[0]
+  const fileNames = attachments.map((item) => item.name).join(', ')
+  const hasMultiple = attachments.length > 1
+  const textSnippet = primary?.textExcerpt
+    ? primary.textExcerpt.replace(/\s+/g, ' ').slice(0, 220).trim()
+    : ''
+
+  const docSnippet = textSnippet
+    ? textSnippet
+    : primary?.isImage
+      ? `Pratinjau gambar "${primary.name}" telah diterima. Saat backend LLM multimodal aktif, teks dan objek visual pada gambar ini akan diekstrak secara otomatis untuk diverifikasi.`
+      : `Dokumen "${primary?.name || 'terlampir'}" (${(primary?.extension || 'FILE').toUpperCase()}) berhasil diterima. Pada mode simulasi frontend, ekstraksi isi PDF dan DOCX penuh akan diproses oleh backend Express.`
+
+  const reply =
+    `FritoGrafi telah menerima ${hasMultiple ? `${attachments.length} file terlampir` : 'lampiran'} (**${fileNames}**) bersama permintaanmu mengenai **"${query}"**.\n\nIsi utama dari dokumen terlampir telah ditandai sebagai rujukan primer untuk pemeriksaan klaim [1]. Selanjutnya, pernyataan penting di dalamnya dibandingkan dengan sumber terbuka eksternal agar kamu bisa melihat apakah klaim tersebut didukung atau memerlukan verifikasi tambahan [2].`
+
+  return {
+    reply,
+    claims: [
+      {
+        id: `claim_doc_1_${Date.now()}`,
+        index: 1,
+        verdict: 'SUPPORTED',
+        confidence: textSnippet ? 0.88 : 0.81,
+        statement: `Dokumen "${primary?.name || 'terlampir'}" berhasil dibaca sebagai bahan acuan utama untuk dianalisis.`,
+        summary: textSnippet
+          ? `Cuplikan teks asli dari "${primary.name}" telah diekstrak langsung di browser dan siap dijadikan dasar pemeriksaan klaim.`
+          : `Metadata dokumen "${primary?.name || 'terlampir'}" telah tercatat lengkap dan siap dikirim sebagai FormData ke backend LLM multimodal.`,
+        reasoning: textSnippet
+          ? '1) File teks dibaca langsung di sisi browser menggunakan FileReader sehingga kutipan di bawah mencerminkan isi nyata dokumen. 2) Saat terhubung ke backend LLM, seluruh dokumen akan dipecah menjadi klaim atomik untuk pengecekan silang otomatis.'
+          : '1) File biner (PDF, DOCX, atau gambar) tervalidasi sesuai batas ukuran dan format. 2) Pada tahap produksi, backend Express menerima file melalui multipart/form-data di memori sementara lalu meneruskannya ke LLM multimodal.',
+        keySources: [],
+        evidence: [
+          {
+            id: `ev_doc_1_${Date.now()}`,
+            sourceType: 'USER_DOCUMENT',
+            stance: 'SUPPORTS',
+            credibility: 0.9,
+            relevance: 0.96,
+            title: `Kutipan dari ${primary?.name || 'Dokumen Terlampir'}`,
+            fileName: primary?.name || 'dokumen',
+            locationLabel: primary?.isImage
+              ? 'Lampiran Gambar'
+              : textSnippet
+                ? 'Bagian Awal Dokumen'
+                : `Format ${(primary?.extension || 'FILE').toUpperCase()}`,
+            snippet: docSnippet,
+          },
+        ],
+      },
+      {
+        id: `claim_doc_2_${Date.now()}`,
+        index: 2,
+        verdict: 'PARTIAL',
+        confidence: 0.72,
+        statement:
+          'Pengecekan silang klaim isi dokumen terhadap sumber web terbuka memerlukan koneksi aktif ke pipeline backend LLM.',
+        summary:
+          'Struktur kartu bukti sudah menampilkan pembandingan antara Dokumen Pengguna dan Pencarian Web. Hasil pengecekan fakta secara langsung akan terisi otomatis begitu endpoint POST /api/chat aktif.',
+        reasoning:
+          '1) Dalam mode pratinjau UI frontend, FritoGrafi memisahkan sumber internal (Dokumen Pengguna) dari sumber pembanding eksternal (Pencarian Web). 2) Pendekatan ini memudahkan pengguna membedakan informasi yang berasal dari file unggahannya sendiri dengan verifikasi independen dari internet.',
+        keySources: [
+          {
+            title:
+              'MDN Web Docs: Menggunakan FormData untuk Pengiriman File ke Server',
+            url: 'https://developer.mozilla.org/en-US/docs/Web/API/FormData',
+          },
+        ],
+        evidence: [
+          {
+            id: `ev_doc_2_${Date.now()}`,
+            sourceType: 'WEB_SEARCH',
+            stance: 'NEUTRAL',
+            credibility: 0.85,
+            relevance: 0.84,
+            title: 'Standar Verifikasi Silang Dokumen terhadap Sumber Terbuka',
+            url: 'https://developer.mozilla.org/en-US/docs/Web/API/FormData',
+            snippet:
+              'Antarmuka frontend telah mendukung pengiriman multipart/form-data agar backend dapat mengekstrak klaim dokumen dan membandingkannya dengan hasil pencarian web.',
+          },
+        ],
+      },
+    ],
+    followUps: [
+      'Bagian mana dari dokumen ini yang paling perlu dicek ulang?',
+      'Bandingkan klaim dokumen ini dengan sumber resmi terbaru',
+    ],
+  }
+}
+
+export function matchMockScenario(query, attachments = []) {
+  if (Array.isArray(attachments) && attachments.length > 0) {
+    return buildAttachmentScenario(query, attachments)
+  }
   const lower = query.toLowerCase()
   for (const scenario of MOCK_SCENARIOS) {
     if (scenario.keywords.some((kw) => lower.includes(kw))) {
