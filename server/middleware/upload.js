@@ -1,5 +1,5 @@
-const path = require('node:path')
-const multer = require('multer')
+import path from 'node:path'
+import multer from 'multer'
 
 const MAX_FILES_PER_REQUEST = 3
 const MAX_FILE_SIZE_MB = 4
@@ -80,7 +80,7 @@ function uploadMiddleware(req, res, next) {
   })
 }
 
-module.exports = {
+export {
   uploadMiddleware,
   MAX_FILES_PER_REQUEST,
   MAX_FILE_SIZE_MB,

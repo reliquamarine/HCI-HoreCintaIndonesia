@@ -1,13 +1,15 @@
-const express = require('express')
-const cors = require('cors')
-const helmet = require('helmet')
-const { config, validateConfig } = require('./config/env')
-const { errorHandler, notFoundHandler } = require('./middleware/errorHandler')
-const chatRoutes = require('./routes/chatRoutes')
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import express from 'express'
+import cors from 'cors'
+import helmet from 'helmet'
+import { config, validateConfig } from './config/env.js'
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
+import { chatRoutes } from './routes/chatRoutes.js'
 
 const app = express()
 
-// Diperlukan agar express-rate-limit membaca IP asli di belakang proxy Render
+// Diperlukan agar express-rate-limit membaca IP asli di belakang proxy Vercel
 app.set('trust proxy', 1)
 
 app.use(
@@ -97,7 +99,12 @@ app.use('/api', chatRoutes)
 app.use(notFoundHandler)
 app.use(errorHandler)
 
-if (require.main === module) {
+const isDirectRun =
+  !process.env.VERCEL &&
+  Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+
+if (isDirectRun) {
   app.listen(config.port, (err) => {
     if (err) {
       if (err.code === 'EADDRINUSE') {
@@ -119,4 +126,4 @@ if (require.main === module) {
   })
 }
 
-module.exports = app
+export default app

@@ -1,11 +1,11 @@
-const { config } = require('../config/env')
-const {
+import { config } from '../config/env.js'
+import {
   cleanForbiddenSeparators,
   cleanMarkdownReply,
   extractJsonObject,
   looksLikeRawJson,
   normalizeChatPayload,
-} = require('../utils/responseNormalizer')
+} from '../utils/responseNormalizer.js'
 
 async function callZroChat({
   messages,
@@ -498,7 +498,7 @@ async function deepenClaimsReasoning({ query = '', claims = [], signal }) {
   }
 }
 
-module.exports = {
+export {
   callZroChat,
   handleSmallTalk,
   generateSearchQueries,

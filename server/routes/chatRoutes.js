@@ -1,17 +1,17 @@
-const express = require('express')
-const { chatRateLimiter } = require('../middleware/rateLimit')
-const { uploadMiddleware } = require('../middleware/upload')
-const { processUploadedFiles } = require('../services/fileProcessor')
-const {
+import express from 'express'
+import { chatRateLimiter } from '../middleware/rateLimit.js'
+import { uploadMiddleware } from '../middleware/upload.js'
+import { processUploadedFiles } from '../services/fileProcessor.js'
+import {
   isSmallTalkMessage,
   searchWebSources,
-} = require('../services/tavilyService')
-const {
+} from '../services/tavilyService.js'
+import {
   deepenClaimsReasoning,
   generateSearchQueries,
   handleSmallTalk,
   synthesizeVerifiedAnswer,
-} = require('../services/zroService')
+} from '../services/zroService.js'
 
 const router = express.Router()
 
@@ -157,4 +157,4 @@ router.post('/chat/deepen', chatRateLimiter, async (req, res, next) => {
   }
 })
 
-module.exports = router
+export { router as chatRoutes }

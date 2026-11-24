@@ -1,7 +1,14 @@
-const path = require('node:path')
-const dotenv = require('dotenv')
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import dotenv from 'dotenv'
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') })
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const envPath = path.resolve(__dirname, '../.env')
+
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath })
+}
 
 function parseOrigins(raw) {
   if (!raw || typeof raw !== 'string') {
@@ -38,7 +45,4 @@ function validateConfig() {
   return missing
 }
 
-module.exports = {
-  config,
-  validateConfig,
-}
+export { config, validateConfig }

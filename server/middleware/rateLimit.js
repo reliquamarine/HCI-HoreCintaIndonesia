@@ -1,4 +1,4 @@
-const { rateLimit } = require('express-rate-limit')
+import { rateLimit } from 'express-rate-limit'
 
 const chatRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -11,6 +11,4 @@ const chatRateLimiter = rateLimit({
   },
 })
 
-module.exports = {
-  chatRateLimiter,
-}
+export { chatRateLimiter }

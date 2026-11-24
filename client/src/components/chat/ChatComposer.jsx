@@ -107,8 +107,8 @@ export function ChatComposer({
             maxLength={MAX_LENGTH}
             placeholder={
               hasAttachments
-                ? 'Tulis pertanyaan tentang file ini, atau tekan Enter untuk verifikasi otomatis...'
-                : 'Ajukan pertanyaan atau klaim yang ingin diverifikasi...'
+                ? 'Tanyakan tentang file ini...'
+                : 'Tanyakan atau cek klaim apa saja...'
             }
             aria-label="Tulis pertanyaan untuk FritoGrafi"
             className="block max-h-42 w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-ink placeholder:text-ink-muted focus:outline-none sm:text-[15px]"

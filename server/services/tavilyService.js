@@ -1,4 +1,4 @@
-const { config } = require('../config/env')
+import { config } from '../config/env.js'
 
 const SMALL_TALK_PATTERNS = [
   /^(halo|hai|hi|hello|hey|pagi|siang|sore|malam|selamat\s+(pagi|siang|sore|malam)|assalamualaikum|p|tes|test)[\s!?.]*$/i,
@@ -214,8 +214,4 @@ async function searchWebSources({ queries, mode = 'basic', signal }) {
   }))
 }
 
-module.exports = {
-  isSmallTalkMessage,
-  inferSourceType,
-  searchWebSources,
-}
+export { isSmallTalkMessage, inferSourceType, searchWebSources }

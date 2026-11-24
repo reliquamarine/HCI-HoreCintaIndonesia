@@ -48,9 +48,9 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 | Lapisan | Teknologi |
 | :--- | :--- |
 | **Frontend** | React 19, Vite 8, Tailwind CSS v4 (`@tailwindcss/vite`), Lucide React, `react-markdown`, `remark-gfm`, `clsx`, `tailwind-merge`, Oxlint |
-| **Backend** | Node.js 22+, Express 5, CORS, Helmet, Express Rate Limit, Multer (`memoryStorage`), `pdf-parse`, Mammoth, Dotenv |
+| **Backend** | Node.js 22+, Express 5 (ESM), CORS, Helmet, Express Rate Limit, Multer (`memoryStorage`), `unpdf`, Mammoth, Dotenv |
 | **AI & Pencarian Web** | Zro API (`deepseek-v4.1-flash`, dukungan teks, penalaran, dan gambar/vision) serta Tavily Search API |
-| **Deployment** | Vercel All-in-One (Static Frontend + Express Serverless Functions pada 1 domain, gratis tanpa kartu kredit) |
+| **Deployment** | Vercel Services (Static Vite Frontend + Express Backend pada 1 domain, gratis tanpa kartu kredit) |
 
 ---
 
@@ -58,8 +58,6 @@ Proyek ini dikembangkan untuk mata kuliah **Human-Computer Interaction (HCI)** o
 
 ```text
 HCI-HoreCintaIndonesia/
-├── api/
-│   └── index.js                    # Entry point Vercel Serverless untuk Express
 ├── client/                         # Aplikasi Frontend (React + Vite + Tailwind v4)
 │   ├── public/
 │   │   ├── favicon.svg
@@ -99,7 +97,7 @@ HCI-HoreCintaIndonesia/
 │   ├── index.js
 │   └── package.json
 ├── package.json                    # Script root (dev, dev:client, dev:server, install:all)
-├── vercel.json                     # Konfigurasi Vercel All-in-One (frontend + /api/*)
+├── vercel.json                     # Konfigurasi Vercel Services (client Vite + server Express)
 └── README.md
 ```
 
@@ -171,12 +169,12 @@ npm run build --prefix client
 
 ## Panduan Deployment Online di Vercel (100% Gratis, Tanpa Kartu Kredit)
 
-Frontend (`client/`) dan Backend Express (`server/` melalui `api/index.js`) langsung di-deploy bersama dalam **1 proyek Vercel**:
+Frontend (`client/`) dan Backend Express (`server/`) langsung di-deploy bersama dalam **1 proyek Vercel** menggunakan **Vercel Services** (`vercel.json`):
 
 1. Pastikan seluruh commit terbaru sudah di-push ke GitHub (`git push origin main`).
 2. Buka `https://vercel.com` dan login menggunakan akun GitHub.
 3. Klik **Add New** → **Project** → klik **Import** pada repository `HCI-HoreCintaIndonesia`.
-4. Biarkan **Root Directory** tetap di root repository (`.` / kosong). Vercel otomatis membaca konfigurasi build, output `client/dist`, dan routing `/api/*` dari `vercel.json`.
+4. Biarkan **Root Directory** tetap di root repository (`.` / kosong). Vercel otomatis membaca konfigurasi multi-service (`client` Vite + `server` Express) dan routing `/api/*` dari `vercel.json`.
 5. Buka bagian **Environment Variables**, lalu tambahkan:
    - `ZRO_API_KEY` = *(API key Zro kamu)*
    - `TAVILY_API_KEY` = *(API key Tavily kamu)*
@@ -195,6 +193,6 @@ Frontend (`client/`) dan Backend Express (`server/` melalui `api/index.js`) lang
 - [x] Implementasi panel **Ringkasan Klaim** (Master-Detail, sitasi inline, filter sikap, modal layar penuh)
 - [x] Implementasi upload file dan dokumen (tombol lampirkan, *drag and drop*, tempel gambar, pratinjau, dan sumber `Dokumen Pengguna`)
 - [x] Implementasi backend Express dengan Zro (`deepseek-v4.1-flash`), Tavily Search API, parser PDF/DOCX/TXT/gambar, serta endpoint `/api/chat` dan `/api/chat/deepen`
-- [x] Konfigurasi Vercel All-in-One (`vercel.json` dan `api/index.js`) untuk deployment 1 klik gratis tanpa kartu kredit
+- [x] Konfigurasi Vercel Services (`vercel.json`) untuk deployment frontend dan backend dalam 1 proyek gratis tanpa kartu kredit
 - [ ] Deployment online ke Vercel menggunakan akun tim
 - [ ] Evaluasi HCI / *usability testing* (opsional sesuai kebutuhan laporan mata kuliah)

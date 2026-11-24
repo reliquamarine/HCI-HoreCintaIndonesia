@@ -315,7 +315,7 @@ function normalizeChatPayload({
   }
 }
 
-module.exports = {
+export {
   cleanForbiddenSeparators,
   cleanMarkdownReply,
   sanitizeReplyCitations,

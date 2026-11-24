@@ -1,6 +1,4 @@
-const { PDFParse } = require('pdf-parse')
-const mammoth = require('mammoth')
-const { getExtension } = require('../middleware/upload')
+import { getExtension } from '../middleware/upload.js'
 
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp'])
 const TEXT_EXTENSIONS = new Set(['txt', 'md', 'csv'])
@@ -28,14 +26,20 @@ function truncateText(text, maxChars = MAX_CHARS_PER_DOCUMENT) {
 }
 
 async function extractPdfText(buffer, fileName) {
-  const parser = new PDFParse({ data: buffer })
+  let pdf = null
   try {
-    const result = await parser.getText()
-    const { text, truncated } = truncateText(result?.text || '')
+    const { extractText, getDocumentProxy } = await import('unpdf')
+    pdf = await getDocumentProxy(new Uint8Array(buffer))
+    const result = await extractText(pdf, { mergePages: true })
+    const rawText = Array.isArray(result?.text)
+      ? result.text.join('\n')
+      : result?.text || ''
+    const { text, truncated } = truncateText(rawText)
     return {
       text,
       truncated,
-      pageCount: typeof result?.total === 'number' ? result.total : null,
+      pageCount:
+        typeof result?.totalPages === 'number' ? result.totalPages : null,
     }
   } catch (err) {
     const message = String(err?.message || '').toLowerCase()
@@ -52,12 +56,16 @@ async function extractPdfText(buffer, fileName) {
     error.statusCode = 400
     throw error
   } finally {
-    await parser.destroy().catch(() => {})
+    if (pdf && typeof pdf.destroy === 'function') {
+      await pdf.destroy().catch(() => {})
+    }
   }
 }
 
 async function extractDocxText(buffer, fileName) {
   try {
+    const mammothModule = await import('mammoth')
+    const mammoth = mammothModule.default || mammothModule
     const result = await mammoth.extractRawText({ buffer })
     const { text, truncated } = truncateText(result?.value || '')
     return { text, truncated, pageCount: null }
@@ -141,6 +149,4 @@ async function processUploadedFiles(files = []) {
   return { documents, images, userSources }
 }
 
-module.exports = {
-  processUploadedFiles,
-}
+export { processUploadedFiles }
